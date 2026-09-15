@@ -19,8 +19,8 @@ let lastError = null;
 let lastModeUsed = null;
 
 export function getDrawerHealth(cfg = {}) {
-  const mode = String(cfg.cash_drawer_mode || "unconfigured").toLowerCase();
-  const configured = mode === "serial" || mode === "printer";
+  const mode = resolveDrawerMode(cfg);
+  const configured = isDrawerConfigured(cfg);
   return {
     configured,
     mode,
@@ -30,22 +30,8 @@ export function getDrawerHealth(cfg = {}) {
     last_open_at: lastOpenAt,
     last_error: lastError,
     last_mode_used: lastModeUsed,
-    discovery_hint:
-      mode === "unconfigured"
-        ? "See docs/CASH_DRAWER_DISCOVERY.md before enabling serial or printer kick"
-        : null
+    discovery_hint: drawerDiscoveryHint(cfg)
   };
-}
-
-export function isDrawerConfigured(cfg = {}) {
-  const mode = String(cfg.cash_drawer_mode || "unconfigured").toLowerCase();
-  if (mode === "serial") {
-    return Boolean(String(cfg.cash_drawer_serial_path || "").trim());
-  }
-  if (mode === "printer") {
-    return Boolean(String(cfg.printer_name || "").trim());
-  }
-  return false;
 }
 
 async function openSerial(serialPath, baudRate) {
@@ -80,7 +66,7 @@ async function openSerial(serialPath, baudRate) {
 }
 
 export async function openDrawer(cfg = {}) {
-  const mode = String(cfg.cash_drawer_mode || "unconfigured").toLowerCase();
+  const mode = resolveDrawerMode(cfg);
   try {
     if (mode === "serial") {
       await openSerial(cfg.cash_drawer_serial_path, cfg.cash_drawer_baud_rate);
