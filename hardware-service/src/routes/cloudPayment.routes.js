@@ -6,7 +6,6 @@ import {
   getPaxElavonConfig,
   getPaxElavonConnectionPayload
 } from "../config/paxElavon.config.js";
-import { config } from "../config.js";
 import logger from "../utils/logger.js";
 import {
   forwardToStoreHardware,
@@ -43,7 +42,10 @@ async function forwardToHardware(req, res, method, pathSuffix, body = null) {
       method,
       path: `/api/payment${pathSuffix}`,
       body,
-      timeoutMs: paymentForwardTimeoutMs(pathSuffix, config.pax_timeout_ms),
+      timeoutMs: paymentForwardTimeoutMs(
+        pathSuffix,
+        Number(process.env.PAX_TIMEOUT_MS) || 120000
+      ),
       logLabel: "CLOUD PAYMENT"
     });
     return res.status(result.status).json(result.data);
