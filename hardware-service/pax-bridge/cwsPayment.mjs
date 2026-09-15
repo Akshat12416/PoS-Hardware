@@ -481,9 +481,17 @@ export class CwsPaymentService {
 
     try {
       cws = await this.ping();
-      reader = await this.getCardReaderInfo();
     } catch (err) {
       cwsError = err.message;
+    }
+
+    if (cws?.ok) {
+      try {
+        reader = await this.getCardReaderInfo();
+      } catch (err) {
+        reader = null;
+        cwsError = cwsError || `reader lookup failed: ${err.message}`;
+      }
     }
 
     const cwsReachable = Boolean(cws?.ok);
