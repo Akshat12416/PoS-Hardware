@@ -1,13 +1,13 @@
 {
   "info": {
-    "name": "Southwest Farmers — PAX A35 Payment APIs",
+    "name": "Southwest Farmers — Ingenico / CWS Payment APIs",
     "_postman_id": "swf-pax-a35-collection",
-    "description": "All PAX A35 payment endpoints.\n\nVariables:\n- local_url = http://localhost:3001\n- cloud_url = https://pos-02fj.onrender.com\n- terminal_id = your terminal UID\n- agent_secret = your agent secret\n- store_id = your store ID\n- ref_num = from initiate response",
+    "description": "Ingenico Lane/3600 via CWS (USB). Legacy PAX A35 frames are not used.\n\nVariables:\n- local_url = http://127.0.0.1:3001\n- cloud_url = https://pos-7mvx.onrender.com\n- terminal_id = your terminal UID\n- agent_secret = your agent secret\n- store_id = your store ID\n- ref_num = from initiate response",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     { "key": "local_url",    "value": "http://localhost:3001",            "type": "string" },
-    { "key": "cloud_url",    "value": "https://pos-02fj.onrender.com",    "type": "string" },
+    { "key": "cloud_url",    "value": "https://pos-7mvx.onrender.com",    "type": "string" },
     { "key": "terminal_id",  "value": "REPLACE_WITH_TERMINAL_UID",        "type": "string" },
     { "key": "agent_secret", "value": "REPLACE_WITH_AGENT_SECRET",        "type": "string" },
     { "key": "store_id",     "value": "REPLACE_WITH_STORE_ID",            "type": "string" },
@@ -46,7 +46,7 @@
               "host": ["{{local_url}}"],
               "path": ["api", "payment", "status"]
             },
-            "description": "Sends A00 Initialize to PAX A35 at 192.168.1.44:10009. Returns terminal online status."
+            "description": "CWS + Ingenico USB status: cws_reachable, reader_detected, gateway_ready."
           }
         },
         {
@@ -80,7 +80,7 @@
               "host": ["{{local_url}}"],
               "path": ["api", "payment", "initiate"]
             },
-            "description": "Sends T00 Sale to PAX A35. Amount in dollars. Saves refNum to collection variable automatically."
+            "description": "Starts a CWS sale on the Ingenico. Amount in dollars. Wait up to 120s for the customer to tap/insert."
           }
         },
         {
@@ -102,7 +102,7 @@
               "host": ["{{local_url}}"],
               "path": ["api", "payment", "cancel"]
             },
-            "description": "Sends A14 Abort to PAX A35. Cancels current in-progress transaction."
+            "description": "Cancels the in-flight Ingenico/CWS transaction."
           }
         },
         {
