@@ -23,7 +23,7 @@ router.get("/", async (_req, res) => {
   let bridge = null;
   if (config.pax_enabled && config.pax_bridge_url) {
     try {
-      bridge = await probePaxBridge(config.pax_bridge_url);
+      bridge = await probePaxBridge(config.pax_bridge_url, config.pax_timeout_ms);
     } catch (err) {
       bridge = { ok: false, via: null, detail: err.message };
     }

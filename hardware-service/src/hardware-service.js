@@ -59,7 +59,7 @@ async function assertPaxBridgeReachableIfConfigured() {
   const runProbe = config.pax_strict_startup || config.pax_bridge_startup_probe;
   if (!runProbe) return;
 
-  const result = await probePaxBridge(bridgeUrl);
+  const result = await probePaxBridge(bridgeUrl, config.pax_timeout_ms);
   if (result.ok) {
     logger.info(`[PAYMENT] CWS bridge reachable (${result.via})`);
     return;
