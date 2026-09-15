@@ -8,15 +8,18 @@ import paymentRoutes from "./routes/payment.routes.js";
 import diagnosticsRoutes from "./routes/diagnostics.routes.js";
 import keyboardRoutes from "./routes/keyboard.routes.js";
 import displayRoutes from "./routes/display.routes.js";
-import { initKeyboardWedgeScanner } from "./devices/scanner/scanner.hid.js";
-import { initUsbHidScanner } from "./devices/scanner/scanner.usbHid.js";
-import { initScanner } from "./devices/scanner/scanner.service.js";
+import localTerminalRoutes from "./routes/localTerminal.routes.js";
+import { initScannerInput, closeScanner } from "./devices/scanner/scanner.service.js";
 import { verifyHardwareAgent } from "./middleware/verifyHardwareAgent.js";
 import { heartbeat } from "./heartbeat.js";
 import { config } from "./config.js";
-import { initScale } from "./devices/scale/scale.service.js";
+import { initScale, closeScale } from "./devices/scale/scale.service.js";
 import logger from "./utils/logger.js";
 import { probePaxBridge } from "./utils/paxBridgeProbe.js";
+import { validateConfig } from "./config/validateConfig.js";
+
+const BIND_HOST = "127.0.0.1";
+const PORT = Number(process.env.HARDWARE_PORT || 3001);
 
 const app = express();
 app.use(express.json({ limit: "100kb" }));
@@ -27,7 +30,7 @@ function validatePaxStartupConfig() {
   const bridgeUrl = String(config.pax_bridge_url || "").trim();
   if (!bridgeUrl) {
     const msg =
-      "[PAX] pax_enabled=true but pax_bridge_url is empty — set PAX_BRIDGE_URL or config.json";
+      "[PAYMENT] pax_enabled=true but pax_bridge_url is empty — set PAX_BRIDGE_URL or config.json";
     if (config.pax_strict_startup) {
       logger.error(msg);
       process.exit(1);
@@ -41,8 +44,8 @@ function validatePaxStartupConfig() {
     /^https?:\/\/127\.0\.0\.1(?::\d+)?/i.test(bridgeUrl);
 
   if (localBridge) {
-    logger.warn(
-      "[PAX] pax_bridge_url uses loopback — normal when the SDK bridge runs on this same PC."
+    logger.info(
+      "[PAYMENT] pax_bridge_url uses loopback — expected when the CWS bridge runs on this PC."
     );
   }
 }
@@ -58,11 +61,11 @@ async function assertPaxBridgeReachableIfConfigured() {
 
   const result = await probePaxBridge(bridgeUrl);
   if (result.ok) {
-    logger.info(`[PAX] Bridge reachable (${result.via})`);
+    logger.info(`[PAYMENT] CWS bridge reachable (${result.via})`);
     return;
   }
 
-  const msg = `[PAX] Bridge not reachable at ${bridgeUrl.replace(/\/+$/, "")} — ${result.detail || "check PAX_BRIDGE_URL and that the bridge is running"}`;
+  const msg = `[PAYMENT] Bridge not reachable at ${bridgeUrl.replace(/\/+$/, "")} — ${result.detail || "start npm run start:pax-bridge"}`;
   if (config.pax_strict_startup) {
     logger.error(msg);
     process.exit(1);
@@ -70,19 +73,15 @@ async function assertPaxBridgeReachableIfConfigured() {
   logger.warn(msg);
 }
 
-/* ----------------------------------------------------
-   HEALTH (minimal — no secrets)
----------------------------------------------------- */
-app.get("/health", (req, res) => {
+app.get("/health", (_req, res) => {
   res.json({
     status: "OK",
-    approved: Boolean(config.approved)
+    approved: Boolean(config.approved),
+    role: "hardware-agent",
+    bind: `${BIND_HOST}:${PORT}`
   });
 });
 
-/* ----------------------------------------------------
-   LOCK GATE
----------------------------------------------------- */
 function lockGate(req, res, next) {
   if (!config.approved || !config.store_id) {
     return res.status(423).json({
@@ -93,90 +92,83 @@ function lockGate(req, res, next) {
   next();
 }
 
-/* ----------------------------------------------------
-   HARDWARE ROUTES
----------------------------------------------------- */
+app.use("/api/terminal/diagnostics", lockGate, verifyHardwareAgent, diagnosticsRoutes);
+app.use("/api/terminal", localTerminalRoutes);
 app.use("/api/printer", lockGate, verifyHardwareAgent, printerRoutes);
 app.use("/api/scanner", lockGate, verifyHardwareAgent, scannerRoutes);
 app.use("/api/scale", lockGate, verifyHardwareAgent, scaleRoutes);
 app.use("/api/cash-drawer", lockGate, verifyHardwareAgent, cashDrawerRoutes);
 app.use("/api/payment", lockGate, verifyHardwareAgent, paymentRoutes);
-app.use(
-  "/api/terminal/diagnostics",
-  lockGate,
-  verifyHardwareAgent,
-  diagnosticsRoutes
-);
 app.use("/api/keyboard", lockGate, verifyHardwareAgent, keyboardRoutes);
 app.use("/api/display", lockGate, verifyHardwareAgent, displayRoutes);
 
-/* ----------------------------------------------------
-   DEVICE INIT (scale: Datalogic / Remote Weight)
----------------------------------------------------- */
-initScale({
-  path: config.scale_serial_path,
-  baudRate: config.scale_baud_rate
-}).catch(() => { });
-
-initScanner({
-  path: config.scanner_serial_path,
-  baudRate: config.scanner_baud_rate
-}).catch(() => { });
-
-initUsbHidScanner({
-  vendorId: config.scanner_hid_vendor_id,
-  productId: config.scanner_hid_product_id
-})
-  .then((result) => {
-    // Keep keyboard wedge fallback only when USB HID listener is unavailable.
-    if (!result?.started) {
-      const started = initKeyboardWedgeScanner();
-      if (!started) {
-        logger.warn("[SCANNER] No active scanner input listener (USB HID + wedge unavailable)");
-      }
-    }
-  })
-  .catch((err) => {
-    logger.warn(`[SCANNER] USB HID init failed (${err.message}); trying keyboard wedge fallback`);
-    const started = initKeyboardWedgeScanner();
-    if (!started) {
-      logger.warn("[SCANNER] No active scanner input listener after fallback");
-    }
+async function initDevices() {
+  await initScale({
+    path: config.scale_serial_path,
+    baudRate: config.scale_baud_rate
   });
 
-/* ----------------------------------------------------
-   START SERVER
----------------------------------------------------- */
+  await initScannerInput({
+    mode: config.scanner_mode,
+    path: config.scanner_serial_path,
+    baudRate: config.scanner_baud_rate,
+    vendorId: config.scanner_hid_vendor_id,
+    productId: config.scanner_hid_product_id,
+    allowKeyboardWedge: config.scanner_allow_keyboard_wedge
+  });
+}
+
+let server = null;
+let heartbeatTimer = null;
+
+async function shutdown(signal) {
+  logger.info(`[AGENT] Shutting down (${signal})`);
+  if (heartbeatTimer) clearInterval(heartbeatTimer);
+  await Promise.allSettled([closeScale(), closeScanner()]);
+  await new Promise((resolve) => {
+    if (!server) return resolve();
+    server.close(() => resolve());
+  });
+  process.exit(0);
+}
+
 async function startHardwareService() {
+  const validation = validateConfig(config);
+  for (const warning of validation.warnings) logger.warn(`[CONFIG] ${warning}`);
+  for (const error of validation.errors) logger.error(`[CONFIG] ${error}`);
+  if (validation.errors.length && config.pax_strict_startup) {
+    process.exit(1);
+  }
+
   validatePaxStartupConfig();
   await assertPaxBridgeReachableIfConfigured();
+  await initDevices();
 
-  const server = app.listen(3001, "127.0.0.1", () => {
-    console.log("🖥️ Hardware agent running on http://127.0.0.1:3001");
-    console.log("🌐 NGROK:", process.env.NGROK_URL);
+  server = app.listen(PORT, BIND_HOST, () => {
+    console.log(`Hardware agent running on http://${BIND_HOST}:${PORT}`);
+    console.log("NGROK:", process.env.NGROK_URL || "(not set — local tests do not need it)");
   });
 
   server.on("error", (err) => {
     if (err.code === "EADDRINUSE") {
       console.error(
-        "❌ Port 3001 is already in use.\n" +
+        `Port ${PORT} is already in use.\n` +
           "   Another instance of this service may be running.\n" +
-          "   Run: Get-NetTCPConnection -LocalPort 3001 | Select OwningProcess\n" +
+          `   Run: Get-NetTCPConnection -LocalPort ${PORT} | Select OwningProcess\n` +
           "   Then: Stop-Process -Id <PID> -Force"
       );
     } else {
-      console.error("❌ Server error:", err.message);
+      console.error("Server error:", err.message);
     }
     process.exit(1);
   });
+
+  heartbeatTimer = setInterval(heartbeat, 10_000);
+  process.on("SIGINT", () => shutdown("SIGINT"));
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
 }
 
 startHardwareService().catch((err) => {
-  console.error("❌ Hardware service failed to start:", err.message);
+  console.error("Hardware service failed to start:", err.message);
   process.exit(1);
 });
-
-/* ----------------------------------------------------
-   HEARTBEAT LOOP
----------------------------------------------------- */
-setInterval(heartbeat, 10_000);
