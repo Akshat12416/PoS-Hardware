@@ -5,9 +5,10 @@
  * calls Elavon Commerce Web Services (CWS) on the register PC.
  */
 
-import fetch from "node-fetch";
+import { fetchWithTimeout } from "../../utils/fetchWithTimeout.js";
 import { config } from "../../config.js";
 import { getPaxElavonConnectionPayload } from "../../config/paxElavon.config.js";
+import { bridgeCallTimeoutMs } from "../../utils/paymentTimeouts.js";
 
 /* ============================================================
    PUBLIC API
@@ -47,13 +48,13 @@ async function callBridge(path, { method = "GET", body } = {}) {
 
   let res;
   try {
-    res = await fetch(`${base}${path}`, {
+    res = await fetchWithTimeout(`${base}${path}`, {
       method,
       headers: {
         "Content-Type": "application/json"
       },
       body: body ? JSON.stringify(body) : undefined,
-      timeout: config.pax_timeout_ms || 30000
+      timeoutMs: bridgeCallTimeoutMs(path, config.pax_timeout_ms)
     });
   } catch (err) {
     const e = new Error(`PAX bridge unreachable at ${base}: ${err.message}`);
