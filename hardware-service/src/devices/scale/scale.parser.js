@@ -1,8 +1,13 @@
 export default function parseWeight(raw) {
-  // Examples:
-  // "WT: 1.250 kg"
-  // "S 000.500kg"
+  const text = String(raw ?? "").trim();
+  if (!text) return null;
 
-  const match = raw.match(/([\d]+(\.\d+)?)/);
+  const wt = text.match(/WT:\s*([+-]?\d+(?:\.\d+)?)/i);
+  if (wt) return parseFloat(wt[1]);
+
+  const kg = text.match(/([+-]?\d+(?:\.\d+)?)\s*kg/i);
+  if (kg) return parseFloat(kg[1]);
+
+  const match = text.match(/([+-]?\d+(?:\.\d+)?)/);
   return match ? parseFloat(match[1]) : null;
 }
