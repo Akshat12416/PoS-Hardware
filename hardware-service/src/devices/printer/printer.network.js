@@ -1,8 +1,3 @@
-import ThermalPrinter from 'node-thermal-printer';
-
-export function networkPrinter(ip) {
-  return new ThermalPrinter.printer({
-    type: ThermalPrinter.types.EPSON,
-    interface: `tcp://${ip}`
-  });
-}
+throw new Error(
+  "printer.network.js is quarantined. Use printer.windows.js (Windows spooler)."
+);
