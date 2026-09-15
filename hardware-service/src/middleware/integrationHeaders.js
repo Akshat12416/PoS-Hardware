@@ -15,7 +15,7 @@ export function integrationHeaders(req, res, next) {
     if (v) req.headers["x-terminal-id"] = String(v).trim();
   }
   if (!req.headers["x-agent-secret"]) {
-    const v = fromBody("agent_secret", "x_agent_secret");0
+    const v = fromBody("agent_secret", "x_agent_secret");
     if (v) req.headers["x-agent-secret"] = String(v).trim();
   }
 

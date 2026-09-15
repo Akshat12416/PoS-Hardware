@@ -5,4 +5,3 @@ config.json
 *.log
 hardware-agent.log
 printer-jobs.log
-.env.production.example
