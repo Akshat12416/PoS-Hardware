@@ -20,7 +20,7 @@ async function main() {
   console.log(`CWS URL: ${process.env.CWS_BASE_URL || "https://localhost:9790/rest/command"}`);
   console.log(`Terminal: ${process.env.PAYMENT_TERMINAL_TYPE || "ingenico"} ${process.env.PAYMENT_TERMINAL_MODEL || ""} (${process.env.PAYMENT_TERMINAL_CONNECTION || "usb"})`);
   console.log(`Converge merchant: ${process.env.CONVERGE_SSL_MERCHANT_ID || "(not set)"}`);
-  console.log(`Vendor ID set: ${cws.vendorIdConfigured() ? "yes" : "NO — waiting on Daniel"}`);
+  console.log(`Vendor ID set: ${cws.vendorIdConfigured() ? "yes" : "NO — set CONVERGE_SSL_VENDOR_ID"}`);
   console.log("");
 
   try {
@@ -46,7 +46,7 @@ async function main() {
       process.exit(1);
     }
   } else {
-    console.log("openPaymentGateway: skipped (set CONVERGE_SSL_VENDOR_ID when Daniel sends it)");
+    console.log("openPaymentGateway: skipped (set CONVERGE_SSL_VENDOR_ID)");
   }
 
   console.log("");

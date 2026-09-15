@@ -75,6 +75,13 @@ if (fs.existsSync(CONFIG_PATH)) {
   try {
     const loaded = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
     config = { ...config, ...loaded };
+    if (
+      !loaded.cash_drawer_mode &&
+      loaded.cash_drawer_serial_path &&
+      String(loaded.cash_drawer_serial_path).trim()
+    ) {
+      config.cash_drawer_mode = "serial";
+    }
   } catch (err) {
     console.error("Failed to parse config.json:", err.message);
     process.exit(1);

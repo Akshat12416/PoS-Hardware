@@ -24,21 +24,30 @@ New-Item -ItemType Directory -Path $PackageDir | Out-Null
 
 Copy-Item -Path (Join-Path $Dist "pos-hardware-agent.exe") -Destination $PackageDir
 Copy-Item -Path (Join-Path $Root "config.template.json") -Destination $PackageDir
+Copy-Item -Path (Join-Path $Root ".env.example") -Destination $PackageDir
 Copy-Item -Path (Join-Path $Root "packaging/run-agent.bat") -Destination $PackageDir
+Copy-Item -Path (Join-Path $Root "packaging/run-bridge.bat") -Destination $PackageDir
+Copy-Item -Path (Join-Path $Root "packaging/run-all.bat") -Destination $PackageDir
 
 $ReadmePath = Join-Path $PackageDir "README.txt"
 @"
 POS Hardware Agent (Windows)
 
+Preferred runtime is Node 18, not the pkg exe, because serialport and node-hid are native modules.
+
 Files:
-- pos-hardware-agent.exe
+- pos-hardware-agent.exe (experimental; native addons may fail)
 - config.template.json
-- run-agent.bat
+- .env.example
+- run-agent.bat / run-bridge.bat / run-all.bat
 
 Setup:
-1) Copy config.template.json to config.json
-2) Edit config.json with machine-specific values
-3) Run run-agent.bat
+1) Install Node 18, Epson driver, and Elavon Commerce Web Services
+2) Copy config.template.json to config.json and set approved/store_id/COM ports/printer_name
+3) Copy .env.example to .env and set Converge credentials
+4) Run run-all.bat from a Node checkout, or start:
+     npm run start:pax-bridge
+     npm run start:hardware
 "@ | Set-Content -Path $ReadmePath -Encoding ASCII
 
 if (Test-Path $ZipPath) {

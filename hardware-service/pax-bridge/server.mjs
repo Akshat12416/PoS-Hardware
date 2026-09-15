@@ -8,7 +8,7 @@
  * Run from hardware-service directory:
  *   npm run start:pax-bridge
  *
- * Env (see .env.production.example):
+ * Env (see .env.example):
  *   PAX_BRIDGE_PORT, CWS_BASE_URL, CONVERGE_SSL_*, CONVERGE_SSL_VENDOR_ID, PAX_TERMINAL_IP
  */
 
