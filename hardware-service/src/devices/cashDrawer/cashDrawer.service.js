@@ -4,6 +4,13 @@
  */
 import logger from "../../utils/logger.js";
 import { sendRawToPrinter } from "../printer/printer.windows.js";
+import {
+  isDrawerConfigured,
+  resolveDrawerMode,
+  drawerDiscoveryHint
+} from "./cashDrawer.logic.js";
+
+export { isDrawerConfigured, OPEN_DRAWER_CMD };
 
 export const OPEN_DRAWER_CMD = Buffer.from([0x1b, 0x70, 0x00, 0x37, 0x79]);
 
