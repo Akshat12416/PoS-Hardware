@@ -1,55 +1,22 @@
 import EventBus from "../../events/bus.js";
 import logger from "../../utils/logger.js";
+import {
+  usageToChar,
+  isTerminatorUsage,
+  LEFT_SHIFT_MASK,
+  RIGHT_SHIFT_MASK
+} from "./hidDecode.js";
 
-const HID_USAGE_ENTER = 40;
-const HID_USAGE_TAB = 43;
-const HID_USAGE_A = 4;
-const HID_USAGE_Z = 29;
-const HID_USAGE_1 = 30;
-const HID_USAGE_0 = 39;
-const LEFT_SHIFT_MASK = 0x02;
-const RIGHT_SHIFT_MASK = 0x20;
 const SCAN_IDLE_FLUSH_MS = 120;
+const SCANNER_NAME = /(zebra|symbol|honeywell|datalogic|scanner|barcode)/i;
+const KEYBOARD_EXCLUDE = /(cherry|spos|keyboard|planar)/i;
 
-const shiftedNumberMap = {
-  30: "!",
-  31: "@",
-  32: "#",
-  33: "$",
-  34: "%",
-  35: "^",
-  36: "&",
-  37: "*",
-  38: "(",
-  39: ")"
-};
-
-const symbolMap = {
-  44: " ", 45: "-", 46: "=", 47: "[", 48: "]", 49: "\\",
-  51: ";", 52: "'", 53: "`", 54: ",", 55: ".", 56: "/"
-};
-
-const shiftedSymbolMap = {
-  45: "_", 46: "+", 47: "{", 48: "}", 49: "|",
-  51: ":", 52: "\"", 53: "~", 54: "<", 55: ">", 56: "?"
-};
-
-function usageToChar(usageId, shifted) {
-  if (usageId >= HID_USAGE_A && usageId <= HID_USAGE_Z) {
-    const base = String.fromCharCode("a".charCodeAt(0) + (usageId - HID_USAGE_A));
-    return shifted ? base.toUpperCase() : base;
-  }
-
-  if (usageId >= HID_USAGE_1 && usageId <= HID_USAGE_0) {
-    if (shifted) return shiftedNumberMap[usageId] || "";
-    return usageId === HID_USAGE_0 ? "0" : String(usageId - HID_USAGE_1 + 1);
-  }
-
-  if (shifted) return shiftedSymbolMap[usageId] || symbolMap[usageId] || "";
-  return symbolMap[usageId] || "";
-}
+let hidDevice = null;
+let flushTimer = null;
 
 export async function initUsbHidScanner(options = {}) {
+  closeUsbHidScanner();
+
   let hidLib;
   try {
     hidLib = await import("node-hid");
@@ -67,40 +34,47 @@ export async function initUsbHidScanner(options = {}) {
 
   const vendorId = Number(options.vendorId) || null;
   const productId = Number(options.productId) || null;
+  const explicitId = Boolean(vendorId || productId);
 
   const candidates = devices.filter((d) => {
     if (vendorId && d.vendorId !== vendorId) return false;
     if (productId && d.productId !== productId) return false;
-    if (typeof d.usagePage === "number" && d.usagePage !== 1) return false; // Generic desktop
-    if (typeof d.usage === "number" && d.usage !== 6) return false; // Keyboard
-    return Boolean(d.path);
+    if (typeof d.usagePage === "number" && d.usagePage !== 1) return false;
+    if (typeof d.usage === "number" && d.usage !== 6) return false;
+    if (!d.path) return false;
+    if (!explicitId) {
+      const text = `${d.product || ""} ${d.manufacturer || ""}`;
+      if (KEYBOARD_EXCLUDE.test(text)) return false;
+      if (!SCANNER_NAME.test(text)) return false;
+    }
+    return true;
   });
 
   if (candidates.length === 0) {
-    logger.warn("[SCANNER] No matching keyboard HID scanner device found");
-    return { started: false, reason: "no matching hid keyboard device" };
+    const reason = explicitId
+      ? "no matching HID device for configured VID/PID"
+      : "no Zebra/scanner-named HID device (Cherry keyboard ignored)";
+    logger.warn(`[SCANNER] ${reason}`);
+    return { started: false, reason };
   }
 
   const prioritized = candidates.sort((a, b) => {
-    const scannerRegex = /(zebra|symbol|honeywell|datalogic|scanner|barcode)/i;
     const aText = `${a.product || ""} ${a.manufacturer || ""}`;
     const bText = `${b.product || ""} ${b.manufacturer || ""}`;
-    const aScore = scannerRegex.test(aText) ? 1 : 0;
-    const bScore = scannerRegex.test(bText) ? 1 : 0;
+    const aScore = SCANNER_NAME.test(aText) ? 1 : 0;
+    const bScore = SCANNER_NAME.test(bText) ? 1 : 0;
     return bScore - aScore;
   });
 
   const candidate = prioritized[0];
-  let device;
   try {
-    device = new HID.HID(candidate.path);
+    hidDevice = new HID.HID(candidate.path);
   } catch (err) {
     logger.warn(`[SCANNER] Failed to open HID device (${err.message})`);
     return { started: false, reason: "failed opening hid device" };
   }
 
   let buffer = "";
-  let flushTimer = null;
   let lastUsageId = null;
 
   function flush() {
@@ -111,12 +85,14 @@ export async function initUsbHidScanner(options = {}) {
     logger.info(`[SCANNER] USB HID scan received: ${value}`);
   }
 
-  device.on("data", (data) => {
+  hidDevice.on("data", (data) => {
     const bytes = Array.from(data || []);
     if (bytes.length < 3) return;
 
     const modifiers = bytes[0] || 0;
-    const shifted = Boolean(modifiers & LEFT_SHIFT_MASK || modifiers & RIGHT_SHIFT_MASK);
+    const shifted = Boolean(
+      modifiers & LEFT_SHIFT_MASK || modifiers & RIGHT_SHIFT_MASK
+    );
     const usageIds = bytes.slice(2).filter((u) => u > 0);
     if (usageIds.length === 0) {
       lastUsageId = null;
@@ -124,11 +100,10 @@ export async function initUsbHidScanner(options = {}) {
     }
 
     for (const usageId of usageIds) {
-      // Ignore key repeat while key is held down.
       if (usageId === lastUsageId) continue;
       lastUsageId = usageId;
 
-      if (usageId === HID_USAGE_ENTER || usageId === HID_USAGE_TAB) {
+      if (isTerminatorUsage(usageId)) {
         if (flushTimer) {
           clearTimeout(flushTimer);
           flushTimer = null;
@@ -149,7 +124,7 @@ export async function initUsbHidScanner(options = {}) {
     }
   });
 
-  device.on("error", (err) => {
+  hidDevice.on("error", (err) => {
     logger.error(`[SCANNER] USB HID error: ${err.message}`);
   });
 
@@ -159,8 +134,25 @@ export async function initUsbHidScanner(options = {}) {
 
   return {
     started: true,
+    mode: "usb_hid",
     vendorId: candidate.vendorId,
-    productId: candidate.productId
+    productId: candidate.productId,
+    product: candidate.product || null,
+    manufacturer: candidate.manufacturer || null
   };
 }
 
+export function closeUsbHidScanner() {
+  if (flushTimer) {
+    clearTimeout(flushTimer);
+    flushTimer = null;
+  }
+  if (!hidDevice) return;
+  try {
+    hidDevice.removeAllListeners();
+    hidDevice.close();
+  } catch {
+    // ignore
+  }
+  hidDevice = null;
+}
