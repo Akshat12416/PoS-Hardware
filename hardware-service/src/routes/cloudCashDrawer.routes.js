@@ -1,63 +1,38 @@
 /**
- * Cloud proxy for cash drawer: forwards to active hardware terminal.
- * Requires x-store-id. Use from frontend: GET https://your-cloud.com/api/cash-drawer/status
+ * Cloud proxy for cash drawer: forwards to the active hardware agent.
  */
 import express from "express";
-import fetch from "node-fetch";
-import { getActiveTerminalForStore } from "../utils/hardwareRegistry.js";
 import logger from "../utils/logger.js";
+import {
+  forwardToStoreHardware,
+  sendForwardError
+} from "../utils/hardwareProxy.js";
 
 const router = express.Router();
 
-async function parseHardwareResponse(hRes) {
-  const raw = await hRes.text();
+async function forward(req, res, method, pathSuffix, body = null) {
+  logger.info("[CLOUD CASH-DRAWER] Request", {
+    method,
+    path: pathSuffix,
+    store_id: req.headers["x-store-id"]
+  });
   try {
-    return JSON.parse(raw);
-  } catch {
-    return {
-      success: false,
-      message: "Invalid response from hardware",
-      raw
-    };
-  }
-}
-
-async function forwardToHardware(req, res, method, pathSuffix, body = null) {
-  const store_id = req.headers["x-store-id"];
-  logger.info("[CLOUD CASH-DRAWER] Request", { method, path: pathSuffix, store_id, has_header: !!store_id });
-  if (!store_id) {
-    return res.status(400).json({ success: false, message: "Missing x-store-id header" });
-  }
-  const terminal = await getActiveTerminalForStore(store_id);
-  if (!terminal) {
-    logger.error("[CLOUD CASH-DRAWER] No active terminal", { store_id });
-    return res.status(404).json({ success: false, message: "No active terminal" });
-  }
-  const { terminal_uid, hardware_url, agent_secret } = terminal;
-  const targetUrl = `${hardware_url}/api/cash-drawer${pathSuffix}`;
-  logger.info("[CLOUD CASH-DRAWER] Forwarding", { targetUrl });
-  try {
-    const opts = {
+    const result = await forwardToStoreHardware({
+      storeId: req.headers["x-store-id"],
       method,
-      headers: {
-        "Content-Type": "application/json",
-        "ngrok-skip-browser-warning": "true",
-        "x-terminal-id": terminal_uid,
-        "x-agent-secret": agent_secret
-      },
-      timeout: 8000
-    };
-    if (body !== null) opts.body = JSON.stringify(body);
-    const hRes = await fetch(targetUrl, opts);
-    const data = await parseHardwareResponse(hRes);
-    return res.status(hRes.status).json(data);
+      path: `/api/cash-drawer${pathSuffix}`,
+      body,
+      timeoutMs: 8000,
+      logLabel: "CLOUD CASH-DRAWER"
+    });
+    return res.status(result.status).json(result.data);
   } catch (err) {
     logger.error("[CLOUD CASH-DRAWER] Forward failed", { message: err.message });
-    return res.status(502).json({ success: false, message: "Hardware agent unreachable", error: err.message });
+    return sendForwardError(res, err);
   }
 }
 
-router.get("/status", (req, res) => forwardToHardware(req, res, "GET", "/status"));
-router.post("/open", (req, res) => forwardToHardware(req, res, "POST", "/open", req.body || {}));
+router.get("/status", (req, res) => forward(req, res, "GET", "/status"));
+router.post("/open", (req, res) => forward(req, res, "POST", "/open", req.body || {}));
 
 export default router;
