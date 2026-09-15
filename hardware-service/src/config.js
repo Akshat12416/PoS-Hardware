@@ -1,9 +1,27 @@
-// src/config.js
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import { validateConfig } from "./config/validateConfig.js";
 
 export const CONFIG_PATH = path.resolve("./config.json");
+
+function envFlag(name, fallback = false) {
+  if (process.env[name] === undefined) return fallback;
+  return process.env[name] === "true";
+}
+
+function envNumber(name, fallback) {
+  if (process.env[name] === undefined || process.env[name] === "") {
+    return fallback;
+  }
+  const n = Number(process.env[name]);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function envString(name, fallback = "") {
+  if (process.env[name] === undefined) return fallback;
+  return String(process.env[name]);
+}
 
 let config = {
   version: 1,
@@ -12,7 +30,7 @@ let config = {
   agent_secret: null,
 
   store_id: null,
-  cloud_url: process.env.CLOUD_URL || "https://pos-7mvx.onrender.com",
+  cloud_url: envString("CLOUD_URL", "https://pos-7mvx.onrender.com"),
 
   registered: false,
   approved: false,
@@ -20,56 +38,49 @@ let config = {
   created_at: null,
   last_boot_at: null,
 
-  /** Scale (Datalogic Magellan 9300i / Remote Weight 8300RD) */
-  scale_serial_path: process.env.SCALE_SERIAL_PATH || "COM3",
-  scale_baud_rate: Number(process.env.SCALE_BAUD_RATE) || 9600,
+  printer_name: envString("PRINTER_NAME", "EPSON TM-T88V Receipt"),
 
-  /** Cash drawer (M-S CF-405BX-M-B) - serial port or empty to use printer kick */
-  cash_drawer_serial_path: process.env.CASH_DRAWER_SERIAL_PATH || "",
+  scale_serial_path: envString("SCALE_SERIAL_PATH", ""),
+  scale_baud_rate: envNumber("SCALE_BAUD_RATE", 9600),
 
-  /** Barcode scanner (Zebra DS2278) - HID; no config required for keyboard-mode */
-  scanner_serial_path: process.env.SCANNER_SERIAL_PATH || "",
-  scanner_baud_rate: Number(process.env.SCANNER_BAUD_RATE) || 9600,
-  scanner_hid_vendor_id: Number(process.env.SCANNER_HID_VENDOR_ID) || null,
-  scanner_hid_product_id: Number(process.env.SCANNER_HID_PRODUCT_ID) || null,
+  cash_drawer_mode: envString("CASH_DRAWER_MODE", "unconfigured"),
+  cash_drawer_serial_path: envString("CASH_DRAWER_SERIAL_PATH", ""),
+  cash_drawer_baud_rate: envNumber("CASH_DRAWER_BAUD_RATE", 9600),
+
+  scanner_mode: envString("SCANNER_MODE", "auto"),
+  scanner_serial_path: envString("SCANNER_SERIAL_PATH", ""),
+  scanner_baud_rate: envNumber("SCANNER_BAUD_RATE", 9600),
+  scanner_hid_vendor_id: envNumber("SCANNER_HID_VENDOR_ID", null),
+  scanner_hid_product_id: envNumber("SCANNER_HID_PRODUCT_ID", null),
+  scanner_allow_keyboard_wedge: envFlag("SCANNER_ALLOW_KEYBOARD_WEDGE", false),
+
   /** Payment terminal — Ingenico Lane/3600 via CWS bridge (legacy config keys: pax_*) */
-  payment_terminal_type: process.env.PAYMENT_TERMINAL_TYPE || "ingenico",
-  payment_terminal_model:
-    process.env.PAYMENT_TERMINAL_MODEL || "LAN360-USPOS16A",
-  payment_terminal_serial: process.env.PAYMENT_TERMINAL_SERIAL || "",
-  payment_terminal_connection: process.env.PAYMENT_TERMINAL_CONNECTION || "usb",
-  pax_enabled: process.env.PAX_ENABLED === "true",
-  pax_bridge_url:
-    process.env.PAX_BRIDGE_URL !== undefined
-      ? String(process.env.PAX_BRIDGE_URL)
-      : "",
-  pax_strict_startup: process.env.PAX_STRICT_STARTUP === "true",
-  pax_bridge_startup_probe: process.env.PAX_BRIDGE_STARTUP_PROBE === "true",
+  payment_terminal_type: envString("PAYMENT_TERMINAL_TYPE", "ingenico"),
+  payment_terminal_model: envString("PAYMENT_TERMINAL_MODEL", "LAN360-USPOS16A"),
+  payment_terminal_serial: envString("PAYMENT_TERMINAL_SERIAL", ""),
+  payment_terminal_connection: envString("PAYMENT_TERMINAL_CONNECTION", "usb"),
+  pax_enabled: envFlag("PAX_ENABLED", false),
+  pax_bridge_url: envString("PAX_BRIDGE_URL", ""),
+  pax_strict_startup: envFlag("PAX_STRICT_STARTUP", false),
+  pax_bridge_startup_probe: envFlag("PAX_BRIDGE_STARTUP_PROBE", false),
   pax_terminal_id: process.env.PAX_TERMINAL_ID || null,
-  pax_terminal_ip: process.env.PAX_TERMINAL_IP || "",
-  pax_terminal_port: Number(process.env.PAX_TERMINAL_PORT) || 10009,
-  pax_timeout_ms: Number(process.env.PAX_TIMEOUT_MS) || 120000,
+  pax_terminal_ip: envString("PAX_TERMINAL_IP", ""),
+  pax_terminal_port: envNumber("PAX_TERMINAL_PORT", 10009),
+  pax_timeout_ms: envNumber("PAX_TIMEOUT_MS", 120000),
 
-  /** Receipt formatting */
-  receipt_company_name:
-    process.env.RECEIPT_COMPANY_NAME || "Southwest Farmers",
-  /** POS Keyboard (Cherry SPOS) / Touchscreen (Planar) - input/display */
+  receipt_company_name: envString("RECEIPT_COMPANY_NAME", "Southwest Farmers")
 };
 
-/* ----------------------------------------------------
-   Load existing config if present
----------------------------------------------------- */
 if (fs.existsSync(CONFIG_PATH)) {
   try {
     const loaded = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
     config = { ...config, ...loaded };
   } catch (err) {
-    console.error("❌ Failed to parse config.json:", err.message);
+    console.error("Failed to parse config.json:", err.message);
     process.exit(1);
   }
 }
 
-/* Env wins over config.json for PAX flags (production .env on the POS PC) */
 if (process.env.PAX_ENABLED !== undefined) {
   config.pax_enabled = process.env.PAX_ENABLED === "true";
 }
@@ -83,10 +94,19 @@ if (process.env.PAX_BRIDGE_STARTUP_PROBE !== undefined) {
   config.pax_bridge_startup_probe =
     process.env.PAX_BRIDGE_STARTUP_PROBE === "true";
 }
+if (process.env.PRINTER_NAME !== undefined) {
+  config.printer_name = String(process.env.PRINTER_NAME);
+}
+if (process.env.SCANNER_MODE !== undefined) {
+  config.scanner_mode = String(process.env.SCANNER_MODE);
+}
+if (process.env.CASH_DRAWER_MODE !== undefined) {
+  config.cash_drawer_mode = String(process.env.CASH_DRAWER_MODE);
+}
+if (process.env.CASH_DRAWER_BAUD_RATE !== undefined) {
+  config.cash_drawer_baud_rate = envNumber("CASH_DRAWER_BAUD_RATE", 9600);
+}
 
-/* ----------------------------------------------------
-   Generate identity if missing
----------------------------------------------------- */
 let identityCreated = false;
 
 if (!config.terminal_uid) {
@@ -104,29 +124,37 @@ if (!config.created_at) {
   config.created_at = new Date().toISOString();
 }
 
-/* ----------------------------------------------------
-   Persist identity if newly created
----------------------------------------------------- */
-if (identityCreated) {
+export function persistConfig() {
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+}
+
+if (identityCreated) {
+  persistConfig();
   console.log("New hardware terminal identity created:", config.terminal_uid);
 }
 
-/* ----------------------------------------------------
-   Update boot timestamp (every start)
----------------------------------------------------- */
 config.last_boot_at = new Date().toISOString();
 
 try {
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+  persistConfig();
 } catch (err) {
-  console.error("❌ Failed to persist config.json:", err.message);
+  console.error("Failed to persist config.json:", err.message);
   process.exit(1);
 }
 
-/* ----------------------------------------------------
-   Startup log
----------------------------------------------------- */
+const validation = validateConfig(config);
+for (const warning of validation.warnings) {
+  console.warn("[CONFIG]", warning);
+}
+if (validation.errors.length) {
+  for (const error of validation.errors) {
+    console.error("[CONFIG]", error);
+  }
+  if (config.pax_strict_startup) {
+    process.exit(1);
+  }
+}
+
 console.log("Hardware terminal UID:", config.terminal_uid);
 
 export { config };
