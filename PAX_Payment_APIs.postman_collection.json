@@ -1,0 +1,281 @@
+{
+  "info": {
+    "name": "Southwest Farmers — PAX A35 Payment APIs",
+    "_postman_id": "swf-pax-a35-collection",
+    "description": "All PAX A35 payment endpoints.\n\nVariables:\n- local_url = http://localhost:3001\n- cloud_url = https://pos-02fj.onrender.com\n- terminal_id = your terminal UID\n- agent_secret = your agent secret\n- store_id = your store ID\n- ref_num = from initiate response",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "local_url",    "value": "http://localhost:3001",            "type": "string" },
+    { "key": "cloud_url",    "value": "https://pos-02fj.onrender.com",    "type": "string" },
+    { "key": "terminal_id",  "value": "REPLACE_WITH_TERMINAL_UID",        "type": "string" },
+    { "key": "agent_secret", "value": "REPLACE_WITH_AGENT_SECRET",        "type": "string" },
+    { "key": "store_id",     "value": "REPLACE_WITH_STORE_ID",            "type": "string" },
+    { "key": "ref_num",      "value": "",                                  "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "🖥️ LOCAL (localhost:3001)",
+      "item": [
+        {
+          "name": "1. Elavon Config",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-terminal-id",  "value": "{{terminal_id}}" },
+              { "key": "x-agent-secret", "value": "{{agent_secret}}" }
+            ],
+            "url": {
+              "raw": "{{local_url}}/api/payment/elavon-config",
+              "host": ["{{local_url}}"],
+              "path": ["api", "payment", "elavon-config"]
+            },
+            "description": "Returns TID, MID, host, port config. No PAX_ENABLED needed."
+          }
+        },
+        {
+          "name": "2. Status (Ping Terminal)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-terminal-id",  "value": "{{terminal_id}}" },
+              { "key": "x-agent-secret", "value": "{{agent_secret}}" }
+            ],
+            "url": {
+              "raw": "{{local_url}}/api/payment/status",
+              "host": ["{{local_url}}"],
+              "path": ["api", "payment", "status"]
+            },
+            "description": "Sends A00 Initialize to PAX A35 at 192.168.1.44:10009. Returns terminal online status."
+          }
+        },
+        {
+          "name": "3. Initiate Sale",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.refNum) { pm.collectionVariables.set('ref_num', json.refNum); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-terminal-id",  "value": "{{terminal_id}}" },
+              { "key": "x-agent-secret", "value": "{{agent_secret}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1.00,\n  \"currency\": \"USD\",\n  \"order_id\": \"TEST-001\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{local_url}}/api/payment/initiate",
+              "host": ["{{local_url}}"],
+              "path": ["api", "payment", "initiate"]
+            },
+            "description": "Sends T00 Sale to PAX A35. Amount in dollars. Saves refNum to collection variable automatically."
+          }
+        },
+        {
+          "name": "4. Cancel (Abort)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-terminal-id",  "value": "{{terminal_id}}" },
+              { "key": "x-agent-secret", "value": "{{agent_secret}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{local_url}}/api/payment/cancel",
+              "host": ["{{local_url}}"],
+              "path": ["api", "payment", "cancel"]
+            },
+            "description": "Sends A14 Abort to PAX A35. Cancels current in-progress transaction."
+          }
+        },
+        {
+          "name": "5. Void Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-terminal-id",  "value": "{{terminal_id}}" },
+              { "key": "x-agent-secret", "value": "{{agent_secret}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ref_num\": \"{{ref_num}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{local_url}}/api/payment/void",
+              "host": ["{{local_url}}"],
+              "path": ["api", "payment", "void"]
+            },
+            "description": "Sends T02 Void. ref_num from initiate response. Only works on same-day authorized transactions."
+          }
+        },
+        {
+          "name": "6. Refund Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-terminal-id",  "value": "{{terminal_id}}" },
+              { "key": "x-agent-secret", "value": "{{agent_secret}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1.00,\n  \"ref_num\": \"{{ref_num}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{local_url}}/api/payment/refund",
+              "host": ["{{local_url}}"],
+              "path": ["api", "payment", "refund"]
+            },
+            "description": "Sends T04 Return. Amount in dollars. ref_num optional but recommended."
+          }
+        }
+      ]
+    },
+    {
+      "name": "☁️ CLOUD (Render)",
+      "item": [
+        {
+          "name": "1. Elavon Config",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-store-id", "value": "{{store_id}}" }
+            ],
+            "url": {
+              "raw": "{{cloud_url}}/api/payment/elavon-config",
+              "host": ["{{cloud_url}}"],
+              "path": ["api", "payment", "elavon-config"]
+            }
+          }
+        },
+        {
+          "name": "2. Status (Ping Terminal)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-store-id", "value": "{{store_id}}" }
+            ],
+            "url": {
+              "raw": "{{cloud_url}}/api/payment/status",
+              "host": ["{{cloud_url}}"],
+              "path": ["api", "payment", "status"]
+            },
+            "description": "Cloud → Render → hardware agent → PAX terminal."
+          }
+        },
+        {
+          "name": "3. Initiate Sale",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.refNum) { pm.collectionVariables.set('ref_num', json.refNum); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-store-id",   "value": "{{store_id}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1.00,\n  \"currency\": \"USD\",\n  \"order_id\": \"TEST-001\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{cloud_url}}/api/payment/initiate",
+              "host": ["{{cloud_url}}"],
+              "path": ["api", "payment", "initiate"]
+            }
+          }
+        },
+        {
+          "name": "4. Cancel (Abort)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-store-id",   "value": "{{store_id}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{cloud_url}}/api/payment/cancel",
+              "host": ["{{cloud_url}}"],
+              "path": ["api", "payment", "cancel"]
+            }
+          }
+        },
+        {
+          "name": "5. Void Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-store-id",   "value": "{{store_id}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ref_num\": \"{{ref_num}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{cloud_url}}/api/payment/void",
+              "host": ["{{cloud_url}}"],
+              "path": ["api", "payment", "void"]
+            }
+          }
+        },
+        {
+          "name": "6. Refund Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-store-id",   "value": "{{store_id}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1.00,\n  \"ref_num\": \"{{ref_num}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{cloud_url}}/api/payment/refund",
+              "host": ["{{cloud_url}}"],
+              "path": ["api", "payment", "refund"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

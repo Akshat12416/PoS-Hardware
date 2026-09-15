@@ -1,0 +1,61 @@
+{
+  "name": "hardware-service",
+  "version": "1.0.0",
+  "description": "Local POS hardware integration service (printer, scale, scanner)",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": "bootstrap.cjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "start:hardware": "node src/hardware-service.js",
+    "start:pax-bridge": "node pax-bridge/server.mjs",
+    "test:cws": "node scripts/cws-health.mjs",
+    "dev": "nodemon src/index.js",
+    "build:exe:win": "pkg . --targets node18-win-x64 --output dist/pos-hardware-agent.exe",
+    "build:exe:all": "pkg . --targets node18-win-x64,node18-linux-x64 --out-path dist",
+    "build:zip:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-win.ps1"
+  },
+  "keywords": [
+    "pos",
+    "hardware",
+    "printer",
+    "barcode-scanner",
+    "weighing-scale",
+    "usb",
+    "serial",
+    "hid"
+  ],
+  "author": "POS Hardware Agent",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.13.4",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^4.22.1",
+    "ioredis": "^5.10.0",
+    "node-fetch": "^3.3.2",
+    "node-hid": "^3.3.0",
+    "pg": "^8.17.2",
+    "render": "^0.1.4",
+    "serialport": "^12.0.0",
+    "winston": "^3.19.0",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3",
+    "pkg": "^5.8.1"
+  },
+  "engines": {
+    "node": ">=18 <21"
+  },
+  "pkg": {
+    "scripts": [
+      "src/**/*.js"
+    ],
+    "assets": [
+      "config.json"
+    ],
+    "outputPath": "dist"
+  }
+}

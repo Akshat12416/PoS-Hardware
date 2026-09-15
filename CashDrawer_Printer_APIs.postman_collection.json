@@ -1,0 +1,214 @@
+{
+  "info": {
+    "name": "Southwest Farmers — Cash Drawer & Printer APIs",
+    "_postman_id": "swf-drawer-printer-collection",
+    "description": "All Cash Drawer and Printer endpoints.\n\nVariables:\n- local_url = http://localhost:3001\n- cloud_url = https://pos-02fj.onrender.com\n- terminal_id = your terminal UID\n- agent_secret = your agent secret\n- store_id = your store ID",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "local_url",    "value": "http://localhost:3001",          "type": "string" },
+    { "key": "cloud_url",   "value": "https://pos-02fj.onrender.com",  "type": "string" },
+    { "key": "terminal_id", "value": "REPLACE_WITH_TERMINAL_UID",      "type": "string" },
+    { "key": "agent_secret","value": "REPLACE_WITH_AGENT_SECRET",      "type": "string" },
+    { "key": "store_id",    "value": "REPLACE_WITH_STORE_ID",          "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "💵 CASH DRAWER",
+      "item": [
+        {
+          "name": "🖥️ LOCAL",
+          "item": [
+            {
+              "name": "1. Status",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "x-terminal-id",  "value": "{{terminal_id}}" },
+                  { "key": "x-agent-secret", "value": "{{agent_secret}}" }
+                ],
+                "url": {
+                  "raw": "{{local_url}}/api/cash-drawer/status",
+                  "host": ["{{local_url}}"],
+                  "path": ["api", "cash-drawer", "status"]
+                },
+                "description": "Returns whether the cash drawer serial port (COM5) is configured and ready."
+              }
+            },
+            {
+              "name": "2. Open Drawer",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "x-terminal-id",  "value": "{{terminal_id}}" },
+                  { "key": "x-agent-secret", "value": "{{agent_secret}}" },
+                  { "key": "Content-Type",   "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{local_url}}/api/cash-drawer/open",
+                  "host": ["{{local_url}}"],
+                  "path": ["api", "cash-drawer", "open"]
+                },
+                "description": "Sends open command to the M-S CF-405BX cash drawer via serial port (COM5)."
+              }
+            }
+          ]
+        },
+        {
+          "name": "☁️ CLOUD",
+          "item": [
+            {
+              "name": "1. Status",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "x-store-id", "value": "{{store_id}}" }
+                ],
+                "url": {
+                  "raw": "{{cloud_url}}/api/cash-drawer/status",
+                  "host": ["{{cloud_url}}"],
+                  "path": ["api", "cash-drawer", "status"]
+                }
+              }
+            },
+            {
+              "name": "2. Open Drawer",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "x-store-id",   "value": "{{store_id}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{cloud_url}}/api/cash-drawer/open",
+                  "host": ["{{cloud_url}}"],
+                  "path": ["api", "cash-drawer", "open"]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🖨️ PRINTER",
+      "item": [
+        {
+          "name": "🖥️ LOCAL",
+          "item": [
+            {
+              "name": "1. List Printers",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "x-terminal-id",  "value": "{{terminal_id}}" },
+                  { "key": "x-agent-secret", "value": "{{agent_secret}}" }
+                ],
+                "url": {
+                  "raw": "{{local_url}}/api/printer/list",
+                  "host": ["{{local_url}}"],
+                  "path": ["api", "printer", "list"]
+                },
+                "description": "Lists all printers visible to this Windows terminal (uses Windows printer enumeration)."
+              }
+            },
+            {
+              "name": "2. Print Receipt",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "x-terminal-id",  "value": "{{terminal_id}}" },
+                  { "key": "x-agent-secret", "value": "{{agent_secret}}" },
+                  { "key": "Content-Type",   "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"store_name\": \"Southwest Farmers\",\n  \"cashier\": \"John\",\n  \"order_id\": \"ORD-001\",\n  \"items\": [\n    { \"name\": \"Apple\",  \"qty\": 2, \"price\": 1.50 },\n    { \"name\": \"Banana\", \"qty\": 3, \"price\": 0.75 }\n  ],\n  \"total\": 5.25,\n  \"payment_method\": \"CARD\",\n  \"auth_code\": \"TAS123\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{local_url}}/api/printer/print",
+                  "host": ["{{local_url}}"],
+                  "path": ["api", "printer", "print"]
+                },
+                "description": "Prints a receipt. Required fields: items[] (name, qty, price) and total. All numbers must be numbers (not strings)."
+              }
+            }
+          ]
+        },
+        {
+          "name": "☁️ CLOUD",
+          "item": [
+            {
+              "name": "1. List Printers",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "x-store-id", "value": "{{store_id}}" }
+                ],
+                "url": {
+                  "raw": "{{cloud_url}}/api/printer/list",
+                  "host": ["{{cloud_url}}"],
+                  "path": ["api", "printer", "list"]
+                }
+              }
+            },
+            {
+              "name": "2. Print Receipt",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "x-store-id",   "value": "{{store_id}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"store_name\": \"Southwest Farmers\",\n  \"cashier\": \"John\",\n  \"order_id\": \"ORD-001\",\n  \"items\": [\n    { \"name\": \"Apple\",  \"qty\": 2, \"price\": 1.50 },\n    { \"name\": \"Banana\", \"qty\": 3, \"price\": 0.75 }\n  ],\n  \"total\": 5.25,\n  \"payment_method\": \"CARD\",\n  \"auth_code\": \"TAS123\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{cloud_url}}/api/printer/print",
+                  "host": ["{{cloud_url}}"],
+                  "path": ["api", "printer", "print"]
+                },
+                "description": "Cloud → Render → hardware agent → receipt printer."
+              }
+            },
+            {
+              "name": "3. Heartbeat (hardware → cloud)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "x-terminal-id",  "value": "{{terminal_id}}" },
+                  { "key": "x-agent-secret", "value": "{{agent_secret}}" },
+                  { "key": "Content-Type",   "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"store_id\": \"{{store_id}}\",\n  \"hardware_url\": \"http://YOUR_NGROK_URL\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{cloud_url}}/api/printer/heartbeat",
+                  "host": ["{{cloud_url}}"],
+                  "path": ["api", "printer", "heartbeat"]
+                },
+                "description": "Sent by the hardware agent to register itself with the cloud. Normally done automatically."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
