@@ -486,19 +486,45 @@ export class CwsPaymentService {
       cwsError = err.message;
     }
 
+    const cwsReachable = Boolean(cws?.ok);
+    const readerDetected = Boolean(reader);
+    const credentialsOk = this.convergeConfigured() && this.vendorIdConfigured();
+    const gatewayReady = Boolean(this.paymentGatewayId);
+    const ready = cwsReachable && readerDetected && credentialsOk;
+
+    let message;
+    if (!cwsReachable) {
+      message = `CWS unreachable (${cwsError || "ping failed"}). Install Commerce Web Services and confirm https://localhost:9790`;
+    } else if (!this.vendorIdConfigured() || !this.convergeConfigured()) {
+      message =
+        "Set CONVERGE_SSL_MERCHANT_ID, CONVERGE_SSL_USER_ID, CONVERGE_SSL_PIN, and CONVERGE_SSL_VENDOR_ID, then restart the bridge";
+    } else if (!readerDetected) {
+      message =
+        "CWS is up but no card reader is detected. Connect the Ingenico USB terminal and Refresh Devices in ConvergeConnect";
+    } else if (gatewayReady) {
+      message = "CWS bridge ready — payment gateway open";
+    } else {
+      message = "CWS reachable with reader detected — gateway opens on first sale";
+    }
+
     return {
       success: true,
       status: this.activeChanId ? "busy" : "idle",
+      ready,
       bridge_online: true,
       sdk_integrated: true,
       mode: "cws",
       configured: this.convergeConfigured(),
+      credentials_configured: credentialsOk,
       vendor_id_configured: this.vendorIdConfigured(),
-      gateway_open: Boolean(this.paymentGatewayId),
+      converge_configured: this.convergeConfigured(),
+      gateway_open: gatewayReady,
+      gateway_ready: gatewayReady,
       payment_gateway_id: this.paymentGatewayId,
       gateway_error: this.gatewayError,
-      cws_reachable: Boolean(cws?.ok),
+      cws_reachable: cwsReachable,
       cws_error: cwsError,
+      reader_detected: readerDetected,
       card_reader: reader,
       terminal_type: this.terminalType,
       terminal_model: this.terminalModel || null,
@@ -506,11 +532,7 @@ export class CwsPaymentService {
       terminal_connection: this.terminalType === "ingenico" ? "usb" : "network",
       terminal_ip: this.terminalType === "pax" ? this.terminalIp || null : null,
       converge_merchant_id: this.credentials.merchantId || null,
-      message: this.vendorIdConfigured()
-        ? this.paymentGatewayId
-          ? "CWS bridge ready — payment gateway open"
-          : "CWS reachable — gateway opens on first sale"
-        : "Set CONVERGE_SSL_VENDOR_ID (from Daniel) and restart pax-bridge"
+      message
     };
   }
 }
