@@ -119,6 +119,7 @@ router.get("/list", async (req, res) => {
       success: true,
       terminal_uid: config.terminal_uid,
       store_id: config.store_id,
+      configured_printer: config.printer_name || null,
       printers
     });
   } catch (err) {
@@ -171,13 +172,14 @@ router.post("/print", async (req, res) => {
     logger.info("[PRINTER] Sending to device", { job_id: jobId });
 
     // 4) Execute print
-    await printReceipt(payload);
+    const printed = await printReceipt(payload);
 
     // 5) Log success
     logJob({
       job_id: jobId,
       terminal_uid: config.terminal_uid,
       store_id: config.store_id,
+      printer_name: printed?.printer_name || payload.printer_name || config.printer_name,
       status: "PRINTED"
     });
     logger.info("[PRINTER] Print success", { job_id: jobId });
@@ -186,7 +188,8 @@ router.post("/print", async (req, res) => {
       success: true,
       job_id: jobId,
       terminal_uid: config.terminal_uid,
-      store_id: config.store_id
+      store_id: config.store_id,
+      printer_name: printed?.printer_name || payload.printer_name || config.printer_name
     });
   } catch (err) {
     logger.error("[PRINTER] Print failed", { job_id: jobId, error: err?.message || err });
