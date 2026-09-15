@@ -1,28 +1,27 @@
 import { Router } from "express";
-import { getLastWeight } from "../devices/scale/scale.service.js";
+import { getLastWeight, getScaleHealth } from "../devices/scale/scale.service.js";
 
 const router = Router();
 
-/**
- * GET /api/scale/status
- * Scale connection status
- */
-router.get("/status", (_, res) => {
-  res.json({ connected: true });
+router.get("/status", (_req, res) => {
+  const health = getScaleHealth();
+  res.json({
+    success: true,
+    connected: health.connected,
+    ...health
+  });
 });
 
-/**
- * GET /api/scale/weight
- * Last weight from scale (Datalogic Magellan 9300i / Remote Weight 8300RD)
- */
-router.get("/weight", (_, res) => {
+router.get("/weight", (_req, res) => {
   const weight = getLastWeight();
+  const health = getScaleHealth();
   res.json({
     success: true,
     weight: weight != null ? weight : null,
-    unit: "kg"
+    unit: "kg",
+    last_weight_at: health.last_weight_at,
+    connected: health.connected
   });
 });
 
 export default router;
-
