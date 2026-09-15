@@ -106,8 +106,10 @@ export async function getPaxStatus() {
     );
     return {
       ...status,
-      bridge_online: status.bridge_online ?? true,
-      sdk_integrated: status.sdk_integrated ?? status.mode !== "sdk_required",
+      bridge_online: status.bridge_online ?? false,
+      cws_reachable: status.cws_reachable ?? false,
+      reader_detected: status.reader_detected ?? Boolean(status.card_reader),
+      gateway_ready: status.gateway_ready ?? Boolean(status.gateway_open),
       elavon,
       payment_paths: {
         countertop:
