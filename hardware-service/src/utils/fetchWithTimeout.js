@@ -1,7 +1,6 @@
-import fetch from "node-fetch";
-
 /**
- * node-fetch v3 ignores a `timeout` option. Use AbortController instead.
+ * AbortController timeout wrapper around global fetch.
+ * node-fetch v3 ignores a `timeout` option.
  * @param {string} url
  * @param {RequestInit & { timeoutMs?: number }} options
  */

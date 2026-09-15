@@ -1,6 +1,4 @@
-import fetch from "node-fetch";
-import { config } from "../config.js";
-import { getPaxElavonConnectionPayload } from "../config/paxElavon.config.js";
+import { fetchWithTimeout } from "./fetchWithTimeout.js";
 
 /**
  * Best-effort reachability check for the PAX bridge (production ops / diagnostics).

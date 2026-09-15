@@ -2,7 +2,7 @@
   "info": {
     "name": "Southwest Farmers POS — Complete Hardware API",
     "_postman_id": "swf-complete-hardware-api",
-    "description": "All hardware-service endpoints in one collection.\n\nSet these collection variables before use:\n  local_url    = http://localhost:3001\n  cloud_url    = https://pos-02fj.onrender.com\n  terminal_id  = your terminal UID (from config.json)\n  agent_secret = your agent secret (from config.json)\n  store_id     = your store ID",
+    "description": "All hardware-service endpoints in one collection.\n\nSet these collection variables before use:\n  local_url    = http://localhost:3001\n  cloud_url    = https://pos-7mvx.onrender.com\n  terminal_id  = your terminal UID (from config.json)\n  agent_secret = your agent secret (from config.json)\n  store_id     = your store ID",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -13,7 +13,7 @@
     },
     {
       "key": "cloud_url",
-      "value": "https://pos-02fj.onrender.com",
+      "value": "https://pos-7mvx.onrender.com",
       "type": "string"
     },
     {
@@ -175,7 +175,7 @@
           ]
         },
         {
-          "name": "💳 Payment (PAX A35)",
+          "name": "Payment (Ingenico / CWS)",
           "item": [
             {
               "name": "Elavon Config",
@@ -230,7 +230,7 @@
                     "status"
                   ]
                 },
-                "description": "Sends A00 Initialize to PAX A35 at 192.168.1.44:10009."
+                "description": "Ingenico/CWS status via the hardware agent or cloud proxy."
               }
             },
             {
@@ -438,7 +438,7 @@
                     "status"
                   ]
                 },
-                "description": "Checks if COM5 serial path is configured."
+                "description": "Cash drawer status from configured mode (serial or printer)."
               }
             },
             {
@@ -479,7 +479,7 @@
                     "open"
                   ]
                 },
-                "description": "Opens the M-S CF-405BX cash drawer via serial (COM5)."
+                "description": "Opens the cash drawer using cash_drawer_mode."
               }
             }
           ]
@@ -613,7 +613,7 @@
                     "weight"
                   ]
                 },
-                "description": "Returns last weight reading in kg from the scale (COM3)."
+                "description": "Returns last weight reading in kg from the scale serial path in config."
               }
             }
           ]
@@ -726,7 +726,7 @@
       "description": "Call these from any remote frontend/server. Requires x-store-id header. Cloud forwards to the active hardware terminal.",
       "item": [
         {
-          "name": "💳 Payment (PAX A35)",
+          "name": "Payment (Ingenico / CWS)",
           "item": [
             {
               "name": "Elavon Config",
