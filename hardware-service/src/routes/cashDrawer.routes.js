@@ -1,41 +1,38 @@
 import { Router } from "express";
 import { config } from "../config.js";
-import { openDrawer, isConfigured } from "../devices/cashDrawer/cashDrawer.serial.js";
+import {
+  openDrawer,
+  isDrawerConfigured,
+  getDrawerHealth
+} from "../devices/cashDrawer/cashDrawer.service.js";
 
 const router = Router();
 
-/**
- * GET /api/cash-drawer/status
- * Whether cash drawer (M-S CF-405BX-M-B) is configured
- */
-router.get("/status", (_, res) => {
-  const configured = isConfigured(config.cash_drawer_serial_path);
+router.get("/status", (_req, res) => {
+  const health = getDrawerHealth(config);
   res.json({
     success: true,
-    configured,
-    message: configured
-      ? "Cash drawer serial path configured"
-      : "Set CASH_DRAWER_SERIAL_PATH for serial open"
+    ...health,
+    message: health.configured
+      ? `Cash drawer mode=${health.mode}`
+      : health.discovery_hint
   });
 });
 
-/**
- * POST /api/cash-drawer/open
- * Sends open command to cash drawer via serial
- */
-router.post("/open", async (req, res) => {
+router.post("/open", async (_req, res) => {
   try {
-    if (!isConfigured(config.cash_drawer_serial_path)) {
+    if (!isDrawerConfigured(config)) {
       return res.status(503).json({
         success: false,
         message: "Cash drawer not configured",
-        hint: "Set CASH_DRAWER_SERIAL_PATH in config or environment"
+        hint: "Complete docs/CASH_DRAWER_DISCOVERY.md and set cash_drawer_mode to serial or printer"
       });
     }
-    await openDrawer(config.cash_drawer_serial_path);
+    const result = await openDrawer(config);
     res.json({
       success: true,
-      message: "Cash drawer open command sent"
+      message: "Cash drawer open command sent",
+      mode: result.mode
     });
   } catch (err) {
     res.status(500).json({

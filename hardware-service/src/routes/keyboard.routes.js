@@ -1,20 +1,18 @@
 /**
- * POS Keyboard (Cherry SPOS) - status stub.
- * Keyboard is typically used for hotkeys/shortcuts; no driver needed for standard input.
+ * Cherry SPOS keyboard is OS HID input. The agent does not capture keys.
  */
 import { Router } from "express";
 
 const router = Router();
 
-/**
- * GET /api/keyboard/status
- * Keyboard integration status (stub)
- */
-router.get("/status", (_, res) => {
+router.get("/status", (_req, res) => {
   res.json({
     success: true,
-    message: "Cherry SPOS: use as standard keyboard; optional hotkey capture can be added",
-    configured: true
+    device: "Cherry SPOS",
+    agent_integrated: false,
+    os_managed: true,
+    message:
+      "Keyboard input is handled by Windows. The hardware agent does not capture Cherry SPOS keys."
   });
 });
 
