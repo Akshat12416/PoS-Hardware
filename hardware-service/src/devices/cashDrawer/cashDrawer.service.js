@@ -10,7 +10,7 @@ import {
   drawerDiscoveryHint
 } from "./cashDrawer.logic.js";
 
-export { isDrawerConfigured, OPEN_DRAWER_CMD };
+export { isDrawerConfigured };
 
 export const OPEN_DRAWER_CMD = Buffer.from([0x1b, 0x70, 0x00, 0x37, 0x79]);
 
