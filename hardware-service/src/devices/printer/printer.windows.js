@@ -7,6 +7,7 @@ import { promisify } from "util";
 import { config } from "../../config.js";
 import { renderReceiptText } from "../../utils/receiptRenderer.js";
 import logger from "../../utils/logger.js";
+import { isDemoMode } from "../../utils/demoMode.js";
 
 const execAsync = promisify(exec);
 
@@ -30,6 +31,7 @@ function parsePrinterNames(stdout) {
 
 export function getPrinterHealth() {
   return {
+    demo: isDemoMode(),
     configured: Boolean(String(config.printer_name || "").trim()),
     printer_name: config.printer_name || null,
     last_print_at: lastPrint.at,
@@ -40,6 +42,11 @@ export function getPrinterHealth() {
 }
 
 export async function listPrinters() {
+  if (isDemoMode()) {
+    const name = config.printer_name || "DEMO Receipt Printer";
+    return [name, "DEMO Receipt Printer"];
+  }
+
   if (process.platform !== "win32") {
     return [];
   }

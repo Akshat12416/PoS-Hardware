@@ -32,9 +32,15 @@ export function setLastScan(value) {
 }
 
 export function getScannerHealth() {
+  const demo = isDemoMode() || activeMode === "demo";
   return {
-    configured: activeMode !== "disabled",
-    connected: activeMode === "serial" ? serialOpen : Boolean(deviceInfo?.started),
+    demo,
+    configured: demo ? true : activeMode !== "disabled",
+    connected: demo
+      ? true
+      : activeMode === "serial"
+        ? serialOpen
+        : Boolean(deviceInfo?.started),
     active_mode: activeMode,
     device: deviceInfo,
     last_scan_at: lastScanAt,
@@ -86,6 +92,15 @@ export async function initScannerInput(options = {}) {
   if (mode === "disabled") {
     logger.info("[SCANNER] Disabled by configuration");
     return { started: false, mode };
+  }
+
+  if (mode === "demo" || isDemoMode()) {
+    activeMode = "demo";
+    lastError = null;
+    deviceInfo = { started: true, mode: "demo" };
+    setLastScan("012345678905");
+    logger.info("[SCANNER] DEMO mode — simulated barcode 012345678905");
+    return deviceInfo;
   }
 
   try {
