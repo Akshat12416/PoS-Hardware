@@ -71,7 +71,7 @@ async function waitForHealth(timeoutMs = 15000) {
   throw new Error("Demo agent did not start on " + base);
 }
 
-async function call(label, method, urlPath, body) {
+async function call(label, method, urlPath, body, { expectFailure = false } = {}) {
   const res = await fetchWithTimeout(`${base}${urlPath}`, {
     method,
     headers,
@@ -80,8 +80,9 @@ async function call(label, method, urlPath, body) {
   });
   const data = await res.json();
   const ok = res.ok && data.success !== false;
-  console.log(`${ok ? "PASS" : "FAIL"} ${label} (${res.status})`);
-  if (!ok) {
+  const passed = expectFailure ? !ok : ok;
+  console.log(`${passed ? "PASS" : "FAIL"} ${label} (${res.status})`);
+  if (!passed) {
     console.log("     ", JSON.stringify(data));
   }
   return { ok, status: res.status, data };
@@ -119,16 +120,15 @@ try {
   if (!pay.data?.approved || !pay.data?.demo) failed += 1;
 
   const decline = await call(
-    "demo decline path",
+    "demo decline path (expected HTTP error)",
     "POST",
     "/api/payment/initiate",
-    { amount: 1, order_id: "DEMO-DECLINE-1" }
+    { amount: 1, order_id: "DEMO-DECLINE-1" },
+    { expectFailure: true }
   );
   if (decline.ok) {
     console.log("FAIL decline path should not return HTTP success");
     failed += 1;
-  } else {
-    console.log("PASS decline path returned a simulated decline");
   }
 
   const printed = await call("print demo receipt", "POST", "/api/printer/print", {
