@@ -2,7 +2,7 @@ import { Router } from "express";
 import { config } from "../config.js";
 import {
   openDrawer,
-  isDrawerConfigured,
+  isDrawerReady,
   getDrawerHealth
 } from "../devices/cashDrawer/cashDrawer.service.js";
 
@@ -21,7 +21,7 @@ router.get("/status", (_req, res) => {
 
 router.post("/open", async (_req, res) => {
   try {
-    if (!isDrawerConfigured(config)) {
+    if (!isDrawerReady(config)) {
       return res.status(503).json({
         success: false,
         message: "Cash drawer not configured",

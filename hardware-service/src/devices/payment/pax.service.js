@@ -9,6 +9,14 @@ import { fetchWithTimeout } from "../../utils/fetchWithTimeout.js";
 import { config } from "../../config.js";
 import { getPaxElavonConnectionPayload } from "../../config/paxElavon.config.js";
 import { bridgeCallTimeoutMs } from "../../utils/paymentTimeouts.js";
+import { isDemoMode } from "../../utils/demoMode.js";
+import {
+  demoPaymentStatus,
+  demoSale,
+  demoCancel,
+  demoVoid,
+  demoRefund
+} from "./demoPayment.js";
 
 /* ============================================================
    PUBLIC API
@@ -18,6 +26,7 @@ import { bridgeCallTimeoutMs } from "../../utils/paymentTimeouts.js";
  * Ensure PAX is enabled. Throws with a clean error code if not.
  */
 function ensurePaxEnabled() {
+  if (isDemoMode()) return;
   if (!config.pax_enabled) {
     const err = new Error("PAX payment terminal is not enabled");
     err.code = "PAX_NOT_ENABLED";
@@ -86,6 +95,9 @@ async function callBridge(path, { method = "GET", body } = {}) {
  * GET /api/payment/status
  */
 export async function getPaxStatus() {
+  if (isDemoMode()) {
+    return demoPaymentStatus();
+  }
   if (!config.pax_enabled) {
     return {
       success: true,
@@ -136,6 +148,9 @@ export async function getPaxStatus() {
  * @param {{ amount: number, currency?: string, order_id?: string }} params
  */
 export async function initiatePaxPayment({ amount, currency = "USD", order_id }) {
+  if (isDemoMode()) {
+    return demoSale({ amount, currency, order_id });
+  }
   ensurePaxEnabled();
 
   const elavon = getPaxElavonConnectionPayload();
@@ -163,6 +178,7 @@ export async function initiatePaxPayment({ amount, currency = "USD", order_id })
  * POST /api/payment/cancel
  */
 export async function cancelPaxPayment() {
+  if (isDemoMode()) return demoCancel();
   ensurePaxEnabled();
 
   try {
@@ -184,6 +200,7 @@ export async function cancelPaxPayment() {
  * @param {{ ref_num: string, amount?: number }} params
  */
 export async function voidPaxPayment({ ref_num, amount }) {
+  if (isDemoMode()) return demoVoid({ ref_num, amount });
   ensurePaxEnabled();
 
   if (!ref_num) {
@@ -215,6 +232,7 @@ export async function voidPaxPayment({ ref_num, amount }) {
  * @param {{ amount: number, ref_num?: string }} params
  */
 export async function refundPaxPayment({ amount, ref_num }) {
+  if (isDemoMode()) return demoRefund({ amount, ref_num });
   ensurePaxEnabled();
 
   try {

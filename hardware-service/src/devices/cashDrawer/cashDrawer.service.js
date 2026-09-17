@@ -13,6 +13,10 @@ import {
 
 export { isDrawerConfigured };
 
+export function isDrawerReady(cfg = {}) {
+  return isDemoMode() || isDrawerConfigured(cfg);
+}
+
 export const OPEN_DRAWER_CMD = Buffer.from([0x1b, 0x70, 0x00, 0x37, 0x79]);
 
 let lastOpenAt = null;
