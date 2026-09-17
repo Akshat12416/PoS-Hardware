@@ -10,6 +10,7 @@ import {
   initKeyboardWedgeScanner,
   closeKeyboardWedgeScanner
 } from "./scanner.hid.js";
+import { isDemoMode } from "../../utils/demoMode.js";
 
 let lastScan = null;
 let lastScanAt = null;

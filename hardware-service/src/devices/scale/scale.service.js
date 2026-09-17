@@ -5,6 +5,7 @@
 import EventBus from "../../events/bus.js";
 import logger from "../../utils/logger.js";
 import parseWeight from "./scale.parser.js";
+import { isDemoMode } from "../../utils/demoMode.js";
 
 let lastWeight = null;
 let lastWeightAt = null;
@@ -23,10 +24,12 @@ export function getLastWeight() {
 }
 
 export function getScaleHealth() {
+  const demo = isDemoMode();
   return {
-    configured: Boolean(configuredPath),
-    connected: Boolean(port && serialOpen),
-    path: configuredPath,
+    demo,
+    configured: demo ? true : Boolean(configuredPath),
+    connected: demo ? true : Boolean(port && serialOpen),
+    path: demo ? "DEMO" : configuredPath,
     baud_rate: configuredBaud,
     last_weight: lastWeight,
     last_weight_at: lastWeightAt,
@@ -54,6 +57,16 @@ export async function initScale(options = {}) {
   configuredPath = path || null;
   configuredBaud = baudRate;
   shuttingDown = false;
+
+  if (options.demo || isDemoMode()) {
+    configuredPath = "DEMO";
+    serialOpen = true;
+    lastError = null;
+    lastRaw = "WT: 1.250 kg";
+    setLastWeight(1.25);
+    logger.info("[SCALE] DEMO mode — simulated 1.250 kg (no serial port)");
+    return { started: true, demo: true };
+  }
 
   if (!path) {
     lastError = "scale_serial_path is not configured";

@@ -3,9 +3,10 @@ const SCANNER_MODES = [
   "serial",
   "usb_hid",
   "keyboard_wedge",
-  "disabled"
+  "disabled",
+  "demo"
 ];
-const DRAWER_MODES = ["unconfigured", "serial", "printer"];
+const DRAWER_MODES = ["unconfigured", "serial", "printer", "demo"];
 const TERMINAL_TYPES = ["ingenico", "pax"];
 
 function nonempty(value) {
@@ -19,6 +20,13 @@ function nonempty(value) {
 export function validateConfig(cfg = {}) {
   const warnings = [];
   const errors = [];
+  const demo = Boolean(cfg.demo_mode);
+
+  if (demo) {
+    warnings.push(
+      "DEMO_MODE is on — serial/USB/Elavon are simulated. Do not use this on a live register."
+    );
+  }
 
   const scannerMode = String(cfg.scanner_mode || "auto").toLowerCase();
   if (!SCANNER_MODES.includes(scannerMode)) {
@@ -41,7 +49,11 @@ export function validateConfig(cfg = {}) {
     );
   }
 
-  if (scannerMode === "serial" && !nonempty(cfg.scanner_serial_path)) {
+  if (
+    !demo &&
+    scannerMode === "serial" &&
+    !nonempty(cfg.scanner_serial_path)
+  ) {
     errors.push("scanner_mode=serial requires scanner_serial_path");
   }
 
@@ -55,35 +67,39 @@ export function validateConfig(cfg = {}) {
     );
   }
 
-  if (drawerMode === "serial" && !nonempty(cfg.cash_drawer_serial_path)) {
+  if (
+    !demo &&
+    drawerMode === "serial" &&
+    !nonempty(cfg.cash_drawer_serial_path)
+  ) {
     errors.push("cash_drawer_mode=serial requires cash_drawer_serial_path");
   }
 
-  if (drawerMode === "printer" && !nonempty(cfg.printer_name)) {
+  if (!demo && drawerMode === "printer" && !nonempty(cfg.printer_name)) {
     errors.push("cash_drawer_mode=printer requires printer_name");
   }
 
-  if (drawerMode === "unconfigured") {
+  if (!demo && drawerMode === "unconfigured") {
     warnings.push(
       "cash_drawer_mode is unconfigured — run docs/CASH_DRAWER_DISCOVERY.md before testing the till"
     );
   }
 
-  if (!nonempty(cfg.printer_name)) {
+  if (!demo && !nonempty(cfg.printer_name)) {
     warnings.push(
       "printer_name is empty; print jobs will fail until a Windows printer name is set"
     );
   }
 
-  if (!nonempty(cfg.scale_serial_path)) {
+  if (!demo && !nonempty(cfg.scale_serial_path)) {
     warnings.push("scale_serial_path is empty; scale will stay disconnected");
   }
 
-  if (cfg.pax_enabled && !nonempty(cfg.pax_bridge_url)) {
+  if (!demo && cfg.pax_enabled && !nonempty(cfg.pax_bridge_url)) {
     errors.push("pax_enabled=true requires pax_bridge_url");
   }
 
-  if (!cfg.approved || !nonempty(cfg.store_id)) {
+  if (!demo && (!cfg.approved || !nonempty(cfg.store_id))) {
     warnings.push(
       "terminal is not approved locally — hardware APIs return 423 until approved=true and store_id are set"
     );
