@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import logger from "../utils/logger.js";
 import { safeEqual } from "../utils/cryptoSafe.js";
+import { isDemoMode } from "../utils/demoMode.js";
 
 const CONFIG_PATH = path.join(process.cwd(), "config.json");
 
