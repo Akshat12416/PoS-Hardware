@@ -1,5 +1,11 @@
 import { Router } from "express";
-import { getLastWeight, getScaleHealth } from "../devices/scale/scale.service.js";
+import {
+  getLastWeight,
+  getScaleHealth,
+  setLastWeight
+} from "../devices/scale/scale.service.js";
+import { isDemoMode } from "../utils/demoMode.js";
+import parseWeight from "../devices/scale/scale.parser.js";
 
 const router = Router();
 

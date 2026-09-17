@@ -189,7 +189,10 @@ router.post("/print", async (req, res) => {
       job_id: jobId,
       terminal_uid: config.terminal_uid,
       store_id: config.store_id,
-      printer_name: printed?.printer_name || payload.printer_name || config.printer_name
+      printer_name: printed?.printer_name || payload.printer_name || config.printer_name,
+      demo: printed?.demo || false,
+      receipt_file: printed?.receipt_file,
+      receipt_text: printed?.receipt_text
     });
   } catch (err) {
     logger.error("[PRINTER] Print failed", { job_id: jobId, error: err?.message || err });
