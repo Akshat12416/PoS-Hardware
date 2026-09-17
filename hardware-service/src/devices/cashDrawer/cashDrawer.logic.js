@@ -10,6 +10,7 @@ export function isDrawerConfigured(cfg = {}) {
   if (mode === "printer") {
     return Boolean(String(cfg.printer_name || "").trim());
   }
+  if (mode === "demo") return true;
   return false;
 }
 

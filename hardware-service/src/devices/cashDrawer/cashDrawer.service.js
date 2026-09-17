@@ -4,6 +4,7 @@
  */
 import logger from "../../utils/logger.js";
 import { sendRawToPrinter } from "../printer/printer.windows.js";
+import { isDemoMode } from "../../utils/demoMode.js";
 import {
   isDrawerConfigured,
   resolveDrawerMode,
@@ -19,9 +20,11 @@ let lastError = null;
 let lastModeUsed = null;
 
 export function getDrawerHealth(cfg = {}) {
-  const mode = resolveDrawerMode(cfg);
-  const configured = isDrawerConfigured(cfg);
+  const demo = isDemoMode();
+  const mode = demo ? "demo" : resolveDrawerMode(cfg);
+  const configured = demo ? true : isDrawerConfigured(cfg);
   return {
+    demo,
     configured,
     mode,
     serial_path: cfg.cash_drawer_serial_path || null,
@@ -30,7 +33,7 @@ export function getDrawerHealth(cfg = {}) {
     last_open_at: lastOpenAt,
     last_error: lastError,
     last_mode_used: lastModeUsed,
-    discovery_hint: drawerDiscoveryHint(cfg)
+    discovery_hint: demo ? null : drawerDiscoveryHint(cfg)
   };
 }
 
@@ -66,8 +69,15 @@ async function openSerial(serialPath, baudRate) {
 }
 
 export async function openDrawer(cfg = {}) {
-  const mode = resolveDrawerMode(cfg);
+  const mode = isDemoMode() ? "demo" : resolveDrawerMode(cfg);
   try {
+    if (mode === "demo") {
+      lastModeUsed = "demo";
+      lastOpenAt = new Date().toISOString();
+      lastError = null;
+      logger.info("[CASH DRAWER] DEMO open (no serial/printer kick)");
+      return { success: true, demo: true, mode: "demo" };
+    }
     if (mode === "serial") {
       await openSerial(cfg.cash_drawer_serial_path, cfg.cash_drawer_baud_rate);
       lastModeUsed = "serial";

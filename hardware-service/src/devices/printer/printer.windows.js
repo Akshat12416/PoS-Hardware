@@ -89,6 +89,35 @@ export async function printReceipt(data = {}) {
     throw new Error("printer_name is not configured");
   }
 
+  const receiptText = renderReceiptText({
+    ...data,
+    company_name:
+      data?.company_name ||
+      config.receipt_company_name ||
+      "Southwest Farmers"
+  });
+
+  if (isDemoMode()) {
+    const demoDir = path.join(process.cwd(), "tmp", "demo-receipts");
+    fs.mkdirSync(demoDir, { recursive: true });
+    const demoFile = path.join(demoDir, `receipt_${Date.now()}.txt`);
+    fs.writeFileSync(demoFile, receiptText, "utf8");
+    lastPrint = {
+      at: new Date().toISOString(),
+      success: true,
+      printer_name: printerName,
+      error: null
+    };
+    logger.info(`[PRINTER] DEMO receipt written to ${demoFile}`);
+    return {
+      success: true,
+      demo: true,
+      printer_name: printerName,
+      receipt_file: demoFile,
+      receipt_text: receiptText
+    };
+  }
+
   if (process.platform !== "win32") {
     lastPrint = {
       at: new Date().toISOString(),
@@ -98,14 +127,6 @@ export async function printReceipt(data = {}) {
     };
     throw new Error("Windows spooler printing is only supported on win32");
   }
-
-  const receiptText = renderReceiptText({
-    ...data,
-    company_name:
-      data?.company_name ||
-      config.receipt_company_name ||
-      "Southwest Farmers"
-  });
 
   const tempFile = path.join(os.tmpdir(), `receipt_${Date.now()}.txt`);
   fs.writeFileSync(tempFile, receiptText, "utf8");
@@ -148,6 +169,10 @@ export async function sendRawToPrinter(printerName, bytes) {
   const name = resolvePrinterName(printerName);
   if (!name) {
     throw new Error("printer_name is not configured");
+  }
+  if (isDemoMode()) {
+    logger.info("[PRINTER] DEMO raw kick (no Windows printer)");
+    return { success: true, demo: true, printer_name: name };
   }
   if (process.platform !== "win32") {
     throw new Error("Raw printer I/O is only supported on Windows");
