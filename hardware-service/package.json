@@ -12,6 +12,7 @@
     "test": "node --test test/*.test.js",
     "test:cws": "node scripts/cws-health.mjs",
     "smoke:local": "node scripts/smoke-local.mjs",
+    "demo": "node scripts/demo-software.mjs",
     "rotate-secret": "node scripts/rotate-agent-secret.mjs",
     "dev": "nodemon src/index.js",
     "build:exe:win": "pkg . --targets node18-win-x64 --output dist/pos-hardware-agent.exe",

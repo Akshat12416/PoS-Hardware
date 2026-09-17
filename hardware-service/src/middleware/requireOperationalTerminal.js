@@ -51,7 +51,7 @@ export function requireOperationalTerminal(req, res, next) {
     });
   }
 
-  if (!config.approved) {
+  if (!isDemoMode() && !config.approved) {
     logger.warn("[AUTH] Terminal not approved");
     return res.status(403).json({
       success: false,
@@ -59,7 +59,7 @@ export function requireOperationalTerminal(req, res, next) {
     });
   }
 
-  if (!config.store_id) {
+  if (!isDemoMode() && !config.store_id) {
     logger.warn("[AUTH] Terminal not assigned to store");
     return res.status(403).json({
       success: false,
@@ -69,7 +69,7 @@ export function requireOperationalTerminal(req, res, next) {
 
   req.terminal = {
     terminal_uid: config.terminal_uid,
-    store_id: config.store_id
+    store_id: config.store_id || (isDemoMode() ? "DEMO-STORE" : null)
   };
   logger.info("[AUTH] requireOperationalTerminal OK", { terminal_uid: config.terminal_uid });
   next();
