@@ -17,6 +17,16 @@ import { config } from "../config.js";
 
 const router = Router();
 
+function paymentHttpStatus(err) {
+  if (err.code === "PAX_NOT_ENABLED" || err.code === "PAX_BRIDGE_NOT_CONFIGURED") {
+    return 503;
+  }
+  if (err.code === "PAX_INVALID_INPUT") return 400;
+  if (err.code === "PAX_DECLINED") return 402;
+  if (typeof err.response?.status === "number") return err.response.status;
+  return 502;
+}
+
 router.get("/elavon-paths", (_req, res) => {
   const base = String(
     process.env.CLOUD_URL || config.cloud_url || ""
@@ -83,8 +93,9 @@ router.get("/status", async (_req, res) => {
  */
 router.post("/initiate", async (req, res) => {
   const { amount, currency = "USD", order_id } = req.body || {};
+  const parsedAmount = Number(amount);
 
-  if (typeof amount !== "number" || amount <= 0) {
+  if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
     return res.status(400).json({
       success: false,
       message: "amount (number > 0) is required"
@@ -92,13 +103,17 @@ router.post("/initiate", async (req, res) => {
   }
 
   try {
-    const result = await initiatePaxPayment({ amount, currency, order_id });
+    const result = await initiatePaxPayment({
+      amount: parsedAmount,
+      currency,
+      order_id
+    });
     res.json({
       success: true,
       ...result
     });
   } catch (err) {
-    const status = err.response?.status || 502;
+    const status = paymentHttpStatus(err);
     res.status(status).json({
       success: false,
       message: err.response?.data?.message || err.message || "PAX initiate failed",
@@ -122,7 +137,7 @@ router.post("/cancel", async (_req, res) => {
       ...result
     });
   } catch (err) {
-    const status = err.response?.status || 502;
+    const status = paymentHttpStatus(err);
     res.status(status).json({
       success: false,
       message: err.response?.data?.message || err.message || "PAX cancel failed",
@@ -149,7 +164,7 @@ router.post("/void", async (req, res) => {
     const result = await voidPaxPayment({ ref_num, amount });
     res.json({ success: true, ...result });
   } catch (err) {
-    const status = err.code === "PAX_NOT_ENABLED" ? 503 : 502;
+    const status = paymentHttpStatus(err);
     res.status(status).json({
       success: false,
       message: err.message,
@@ -165,8 +180,9 @@ router.post("/void", async (req, res) => {
  */
 router.post("/refund", async (req, res) => {
   const { amount, ref_num } = req.body || {};
+  const parsedAmount = Number(amount);
 
-  if (typeof amount !== "number" || amount <= 0) {
+  if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
     return res.status(400).json({
       success: false,
       message: "amount (number > 0) is required"
@@ -174,10 +190,10 @@ router.post("/refund", async (req, res) => {
   }
 
   try {
-    const result = await refundPaxPayment({ amount, ref_num });
+    const result = await refundPaxPayment({ amount: parsedAmount, ref_num });
     res.json({ success: true, ...result });
   } catch (err) {
-    const status = err.code === "PAX_NOT_ENABLED" ? 503 : 502;
+    const status = paymentHttpStatus(err);
     res.status(status).json({
       success: false,
       message: err.message,

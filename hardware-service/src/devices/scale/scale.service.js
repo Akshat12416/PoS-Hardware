@@ -5,6 +5,7 @@
 import EventBus from "../../events/bus.js";
 import logger from "../../utils/logger.js";
 import parseWeight from "./scale.parser.js";
+import { appendScaleChunk } from "./scale.buffer.js";
 import { isDemoMode } from "../../utils/demoMode.js";
 
 let lastWeight = null;
@@ -97,11 +98,11 @@ export async function initScale(options = {}) {
 
     let buffer = "";
     port.on("data", (data) => {
-      buffer += data.toString();
-      if (buffer.includes("\n") || buffer.includes("\r")) {
-        lastRaw = buffer.trim();
-        const weight = parseWeight(buffer);
-        buffer = "";
+      const parsed = appendScaleChunk(buffer, data.toString());
+      buffer = parsed.rest;
+      for (const line of parsed.lines) {
+        lastRaw = line;
+        const weight = parseWeight(line);
         if (weight !== null) {
           lastWeight = weight;
           lastWeightAt = new Date().toISOString();

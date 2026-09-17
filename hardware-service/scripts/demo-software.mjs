@@ -102,6 +102,9 @@ try {
   }
 
   await call("diagnostics", "GET", "/api/terminal/diagnostics");
+  await call("scanner status", "GET", "/api/scanner/status");
+  await call("scale status", "GET", "/api/scale/status");
+  await call("drawer status", "GET", "/api/cash-drawer/status");
 
   const scan = await call("scan banana barcode", "POST", "/api/scanner/simulate", {
     value: "4011"
@@ -149,12 +152,51 @@ try {
   }
 
   const drawer = await call("open cash drawer", "POST", "/api/cash-drawer/open");
-  if (!drawer.data?.demo && !drawer.ok) failed += 1;
+  if (!drawer.data?.demo) failed += 1;
+
+  const printers = await call("list printers", "GET", "/api/printer/list");
+  if (!Array.isArray(printers.data?.printers) || printers.data.printers.length < 1) {
+    failed += 1;
+  }
+
+  const payStatus = await call("payment status", "GET", "/api/payment/status");
+  if (!payStatus.data?.demo || !payStatus.data?.ready) failed += 1;
+
+  const voided = await call("demo void", "POST", "/api/payment/void", {
+    ref_num: pay.data?.transactionId
+  });
+  if (!voided.data?.demo) failed += 1;
+
+  const refunded = await call("demo refund", "POST", "/api/payment/refund", {
+    amount: "3.13",
+    ref_num: pay.data?.transactionId
+  });
+  if (!refunded.data?.demo) failed += 1;
+
+  await call("demo cancel", "POST", "/api/payment/cancel");
+  await call("keyboard status", "GET", "/api/keyboard/status");
+  await call("display status", "GET", "/api/display/status");
+  await call(
+    "reject empty barcode",
+    "POST",
+    "/api/scanner/simulate",
+    { value: " " },
+    { expectFailure: true }
+  );
+  await call(
+    "reject zero amount",
+    "POST",
+    "/api/payment/initiate",
+    { amount: 0 },
+    { expectFailure: true }
+  );
 
   if (!scan.ok) failed += 1;
   if (!pay.ok) failed += 1;
   if (!printed.ok) failed += 1;
   if (!drawer.ok) failed += 1;
+  if (!voided.ok) failed += 1;
+  if (!refunded.ok) failed += 1;
 
   console.log(
     failed

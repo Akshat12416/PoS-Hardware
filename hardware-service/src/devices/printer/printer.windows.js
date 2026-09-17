@@ -22,7 +22,7 @@ function escapePsSingleQuotes(value) {
   return String(value ?? "").replace(/'/g, "''");
 }
 
-function parsePrinterNames(stdout) {
+export function parsePrinterNames(stdout) {
   return String(stdout || "")
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -44,7 +44,7 @@ export function getPrinterHealth() {
 export async function listPrinters() {
   if (isDemoMode()) {
     const name = config.printer_name || "DEMO Receipt Printer";
-    return [name, "DEMO Receipt Printer"];
+    return [...new Set([name, "DEMO Receipt Printer"])];
   }
 
   if (process.platform !== "win32") {
@@ -64,11 +64,15 @@ export async function listPrinters() {
     });
   }
 
-  const { stdout } = await execAsync("wmic printer get name", {
-    timeout: 15000,
-    windowsHide: true
-  });
-  return parsePrinterNames(stdout);
+  try {
+    const { stdout } = await execAsync("wmic printer get name", {
+      timeout: 15000,
+      windowsHide: true
+    });
+    return parsePrinterNames(stdout);
+  } catch (err) {
+    throw new Error(`Failed to list printers: ${err.message}`);
+  }
 }
 
 function resolvePrinterName(requested) {

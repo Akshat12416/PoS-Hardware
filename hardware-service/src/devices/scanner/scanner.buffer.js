@@ -1,11 +1,23 @@
 /**
- * Accumulate scanner bytes/chars until CR/LF (serial) or idle flush.
+ * Accumulate scanner bytes/chars until CR/LF.
+ * Returns every complete barcode; leftover partial data stays in rest.
  */
 export function appendScanChunk(buffer, chunk) {
-  const next = `${buffer || ""}${chunk || ""}`;
-  if (next.includes("\n") || next.includes("\r")) {
-    const value = next.replace(/[\r\n]+/g, "").trim();
-    return { value: value || null, rest: "" };
+  let next = `${buffer || ""}${chunk || ""}`;
+  const values = [];
+
+  while (true) {
+    const idx = next.search(/[\r\n]/);
+    if (idx === -1) break;
+    const value = next.slice(0, idx).trim();
+    next = next.slice(idx + 1);
+    if (next.startsWith("\n")) next = next.slice(1);
+    if (value) values.push(value);
   }
-  return { value: null, rest: next };
+
+  return {
+    values,
+    value: values.length ? values[values.length - 1] : null,
+    rest: next
+  };
 }

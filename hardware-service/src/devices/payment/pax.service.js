@@ -170,6 +170,7 @@ export async function initiatePaxPayment({ amount, currency = "USD", order_id })
     e.code = err.code || "PAX_DECLINED";
     e.responseCode = err.responseCode;
     e.paxResult = err.paxResult;
+    e.response = err.response;
     throw e;
   }
 }
@@ -191,6 +192,7 @@ export async function cancelPaxPayment() {
   } catch (err) {
     const e = new Error(err.message || "PAX cancel failed");
     e.code = err.code || "PAX_CANCEL_FAILED";
+    e.response = err.response;
     throw e;
   }
 }
@@ -223,6 +225,7 @@ export async function voidPaxPayment({ ref_num, amount }) {
     const e = new Error(err.message || "PAX void failed");
     e.code = err.code || "PAX_VOID_FAILED";
     e.responseCode = err.responseCode;
+    e.response = err.response;
     throw e;
   }
 }
@@ -249,6 +252,7 @@ export async function refundPaxPayment({ amount, ref_num }) {
     const e = new Error(err.message || "PAX refund failed");
     e.code = err.code || "PAX_REFUND_FAILED";
     e.responseCode = err.responseCode;
+    e.response = err.response;
     throw e;
   }
 }

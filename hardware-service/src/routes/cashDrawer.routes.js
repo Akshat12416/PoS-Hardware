@@ -32,7 +32,8 @@ router.post("/open", async (_req, res) => {
     res.json({
       success: true,
       message: "Cash drawer open command sent",
-      mode: result.mode
+      mode: result.mode,
+      demo: Boolean(result.demo)
     });
   } catch (err) {
     res.status(500).json({

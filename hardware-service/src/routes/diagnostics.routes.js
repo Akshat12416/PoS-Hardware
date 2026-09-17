@@ -22,7 +22,7 @@ function maskBridgeUrl(raw) {
 
 router.get("/", async (_req, res) => {
   let bridge = null;
-  if (config.pax_enabled && config.pax_bridge_url) {
+  if (!isDemoMode() && config.pax_enabled && config.pax_bridge_url) {
     try {
       bridge = await probePaxBridge(config.pax_bridge_url, config.pax_timeout_ms);
     } catch (err) {

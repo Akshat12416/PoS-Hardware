@@ -1,7 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { isDemoMode } from "../src/utils/demoMode.js";
-import { demoSale, demoPaymentStatus } from "../src/devices/payment/demoPayment.js";
+import {
+  demoSale,
+  demoPaymentStatus,
+  demoVoid,
+  demoRefund
+} from "../src/devices/payment/demoPayment.js";
 import { validateConfig } from "../src/config/validateConfig.js";
 
 test("isDemoMode is off by default", () => {
@@ -38,5 +43,34 @@ test("validateConfig in demo_mode does not require COM ports or CWS", () => {
 test("demoPaymentStatus is clearly labeled", () => {
   const status = demoPaymentStatus();
   assert.equal(status.demo, true);
+  assert.equal(status.cws_reachable, true);
   assert.match(status.message, /not sent to Elavon/i);
+});
+
+test("demoSale rejects invalid amounts", () => {
+  assert.throws(
+    () => demoSale({ amount: 0 }),
+    (err) => err.code === "PAX_INVALID_INPUT"
+  );
+  assert.throws(
+    () => demoSale({ amount: "nope" }),
+    (err) => err.code === "PAX_INVALID_INPUT"
+  );
+});
+
+test("demoVoid requires ref_num", () => {
+  assert.throws(() => demoVoid({}), (err) => err.code === "PAX_INVALID_INPUT");
+  const voided = demoVoid({ ref_num: "DEMO-1" });
+  assert.equal(voided.demo, true);
+  assert.equal(voided.transactionId, "DEMO-1");
+});
+
+test("demoRefund rejects invalid amounts and keeps a numeric amount", () => {
+  assert.throws(
+    () => demoRefund({ amount: -1 }),
+    (err) => err.code === "PAX_INVALID_INPUT"
+  );
+  const refunded = demoRefund({ amount: "2.50", ref_num: "DEMO-1" });
+  assert.equal(refunded.amount, 2.5);
+  assert.equal(refunded.demo, true);
 });

@@ -43,11 +43,17 @@ function wrapText(text, width) {
       line = candidate;
       continue;
     }
-    if (line) lines.push(line);
-    // if a single word is longer than width, hard-slice it
+    if (line) {
+      lines.push(line);
+      line = "";
+    }
     if (w.length > width) {
-      lines.push(w.slice(0, width));
-      line = w.slice(width);
+      let remaining = w;
+      while (remaining.length > width) {
+        lines.push(remaining.slice(0, width));
+        remaining = remaining.slice(width);
+      }
+      line = remaining;
     } else {
       line = w;
     }
@@ -196,7 +202,15 @@ export function renderReceiptText(data) {
       for (const rl of refLines) lines.push(padRight(rl, width));
     }
     if (p.status) {
-      lines.push(padRight("STATUS", labelCol) + padLeft(String(p.status), priceCol));
+      const statusText = String(p.status);
+      if (statusText.length > priceCol) {
+        lines.push("STATUS");
+        for (const sl of wrapText(statusText, width)) {
+          lines.push(padRight(sl, width));
+        }
+      } else {
+        lines.push(padRight("STATUS", labelCol) + padLeft(statusText, priceCol));
+      }
     }
   }
 

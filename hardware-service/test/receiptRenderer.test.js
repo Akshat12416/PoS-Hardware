@@ -31,3 +31,24 @@ test("renderReceiptText wraps long item names", () => {
   assert.ok(lines.some((line) => line.includes("Organic")));
   assert.ok(lines.every((line) => line.length <= 32 || line.trim() === ""));
 });
+
+test("renderReceiptText includes full payment status", () => {
+  const text = renderReceiptText({
+    items: [{ name: "Bananas", qty: 1, price: 3.13 }],
+    total: 3.13,
+    payment: { status: "DEMO APPROVED", reference: "DEMO-1" }
+  });
+  assert.match(text, /DEMO APPROVED/);
+});
+
+test("renderReceiptText wraps a SKU longer than the receipt width", () => {
+  const sku = "SKU-" + "9".repeat(70);
+  const text = renderReceiptText({
+    width: 32,
+    items: [{ name: sku, qty: 1, price: 1 }],
+    total: 1
+  });
+  const lines = text.split("\n");
+  assert.ok(lines.some((line) => line.includes("SKU-")));
+  assert.ok(lines.every((line) => line.length <= 32 || line.trim() === ""));
+});

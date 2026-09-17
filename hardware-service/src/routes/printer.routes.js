@@ -33,7 +33,11 @@ function logJob(entry) {
     timestamp: new Date().toISOString()
   });
 
-  fs.appendFileSync(AUDIT_LOG, line + "\n");
+  try {
+    fs.appendFileSync(AUDIT_LOG, line + "\n");
+  } catch (err) {
+    logger.warn("[PRINTER] Audit log write failed", { error: err.message });
+  }
 }
 
 /**

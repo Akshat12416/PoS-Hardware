@@ -60,9 +60,9 @@ async function initSerialScanner({ path, baudRate }) {
   scannerPort.on("data", (data) => {
     const parsed = appendScanChunk(buffer, data.toString());
     buffer = parsed.rest;
-    if (parsed.value) {
-      setLastScan(parsed.value);
-      logger.info(`[SCANNER] Serial scan received: ${parsed.value}`);
+    for (const value of parsed.values) {
+      EventBus.emit("barcode", value);
+      logger.info(`[SCANNER] Serial scan received: ${value}`);
     }
   });
   scannerPort.on("error", (err) => {

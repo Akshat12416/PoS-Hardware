@@ -10,7 +10,7 @@ export function demoPaymentStatus() {
     configured: true,
     ready: true,
     bridge_online: true,
-    cws_reachable: false,
+    cws_reachable: true,
     reader_detected: true,
     gateway_ready: true,
     status: "idle",
@@ -25,6 +25,12 @@ export function demoPaymentStatus() {
 
 export function demoSale({ amount, currency = "USD", order_id }) {
   const n = Number(amount);
+  if (!Number.isFinite(n) || n <= 0) {
+    const err = new Error("amount (number > 0) is required");
+    err.code = "PAX_INVALID_INPUT";
+    throw err;
+  }
+
   const decline =
     String(order_id || "").toUpperCase().includes("DECLINE") || n === 0.01;
 
@@ -66,6 +72,11 @@ export function demoCancel() {
 }
 
 export function demoVoid({ ref_num }) {
+  if (!ref_num) {
+    const err = new Error("ref_num is required for void");
+    err.code = "PAX_INVALID_INPUT";
+    throw err;
+  }
   return {
     success: true,
     demo: true,
@@ -76,11 +87,17 @@ export function demoVoid({ ref_num }) {
 }
 
 export function demoRefund({ amount, ref_num }) {
+  const n = Number(amount);
+  if (!Number.isFinite(n) || n <= 0) {
+    const err = new Error("amount (number > 0) is required");
+    err.code = "PAX_INVALID_INPUT";
+    throw err;
+  }
   return {
     success: true,
     demo: true,
     approved: true,
-    amount,
+    amount: n,
     transactionId: ref_num || `DEMO-REFUND-${Date.now()}`,
     message: "DEMO refund — not sent to Elavon"
   };
