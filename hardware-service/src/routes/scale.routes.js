@@ -26,7 +26,32 @@ router.get("/weight", (_req, res) => {
     weight: weight != null ? weight : null,
     unit: "kg",
     last_weight_at: health.last_weight_at,
-    connected: health.connected
+    connected: health.connected,
+    demo: Boolean(health.demo)
+  });
+});
+
+router.post("/simulate", (req, res) => {
+  if (!isDemoMode()) {
+    return res.status(403).json({
+      success: false,
+      message: "Scale simulate is only available when DEMO_MODE=true"
+    });
+  }
+  const raw = req.body?.weight ?? req.body?.value;
+  const weight = typeof raw === "number" ? raw : parseWeight(String(raw ?? ""));
+  if (weight == null || Number.isNaN(weight)) {
+    return res.status(400).json({
+      success: false,
+      message: "body.weight (number) required"
+    });
+  }
+  setLastWeight(weight);
+  res.json({
+    success: true,
+    demo: true,
+    weight,
+    unit: "kg"
   });
 });
 

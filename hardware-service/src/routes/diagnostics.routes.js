@@ -5,6 +5,7 @@ import { getPrinterHealth, listPrinters } from "../devices/printer/printer.windo
 import { getScannerHealth } from "../devices/scanner/scanner.service.js";
 import { getScaleHealth } from "../devices/scale/scale.service.js";
 import { getDrawerHealth } from "../devices/cashDrawer/cashDrawer.service.js";
+import { isDemoMode, demoBanner } from "../utils/demoMode.js";
 
 const router = Router();
 
@@ -43,6 +44,8 @@ router.get("/", async (_req, res) => {
 
   res.json({
     success: true,
+    demo: isDemoMode(),
+    demo_message: isDemoMode() ? demoBanner() : null,
     terminal_uid: config.terminal_uid,
     approved: config.approved,
     store_id: config.store_id || null,

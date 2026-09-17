@@ -17,6 +17,7 @@ import { initScale, closeScale } from "./devices/scale/scale.service.js";
 import logger from "./utils/logger.js";
 import { probePaxBridge } from "./utils/paxBridgeProbe.js";
 import { validateConfig } from "./config/validateConfig.js";
+import { isDemoMode, demoBanner } from "./utils/demoMode.js";
 
 const BIND_HOST = "127.0.0.1";
 const PORT = Number(process.env.HARDWARE_PORT || 3001);
@@ -76,13 +77,15 @@ async function assertPaxBridgeReachableIfConfigured() {
 app.get("/health", (_req, res) => {
   res.json({
     status: "OK",
-    approved: Boolean(config.approved),
+    approved: Boolean(config.approved) || isDemoMode(),
     role: "hardware-agent",
+    demo: isDemoMode(),
     bind: `${BIND_HOST}:${PORT}`
   });
 });
 
 function lockGate(req, res, next) {
+  if (isDemoMode()) return next();
   if (!config.approved || !config.store_id) {
     return res.status(423).json({
       success: false,
@@ -103,6 +106,13 @@ app.use("/api/keyboard", lockGate, verifyHardwareAgent, keyboardRoutes);
 app.use("/api/display", lockGate, verifyHardwareAgent, displayRoutes);
 
 async function initDevices() {
+  if (isDemoMode()) {
+    logger.warn(demoBanner());
+    await initScale({ demo: true });
+    await initScannerInput({ mode: "demo" });
+    return;
+  }
+
   await initScale({
     path: config.scale_serial_path,
     baudRate: config.scale_baud_rate
