@@ -4,4 +4,4 @@ dist/
 config.json
 *.log
 hardware-agent.log
-printer-jobs.log
+tmp/
