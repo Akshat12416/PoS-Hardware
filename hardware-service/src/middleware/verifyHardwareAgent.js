@@ -2,6 +2,7 @@
 import { config } from "../config.js";
 import { safeEqual } from "../utils/cryptoSafe.js";
 import logger from "../utils/logger.js";
+import { isDemoMode } from "../utils/demoMode.js";
 
 export function verifyHardwareAgent(req, res, next) {
   const terminalId = req.headers["x-terminal-id"];
@@ -26,7 +27,7 @@ export function verifyHardwareAgent(req, res, next) {
     });
   }
 
-  if (!config.approved || !config.store_id) {
+  if (!isDemoMode() && (!config.approved || !config.store_id)) {
     return res.status(403).json({
       success: false,
       message: "Terminal not approved"
@@ -35,7 +36,7 @@ export function verifyHardwareAgent(req, res, next) {
 
   req.terminal = {
     terminal_uid: config.terminal_uid,
-    store_id: config.store_id
+    store_id: config.store_id || (isDemoMode() ? "DEMO-STORE" : null)
   };
   next();
 }

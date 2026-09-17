@@ -143,7 +143,10 @@ async function shutdown(signal) {
 }
 
 async function startHardwareService() {
-  const validation = validateConfig(config);
+  const validation = validateConfig({
+    ...config,
+    demo_mode: isDemoMode()
+  });
   for (const warning of validation.warnings) logger.warn(`[CONFIG] ${warning}`);
   for (const error of validation.errors) logger.error(`[CONFIG] ${error}`);
   if (validation.errors.length && config.pax_strict_startup) {
@@ -151,11 +154,16 @@ async function startHardwareService() {
   }
 
   validatePaxStartupConfig();
-  await assertPaxBridgeReachableIfConfigured();
+  if (!isDemoMode()) {
+    await assertPaxBridgeReachableIfConfigured();
+  }
   await initDevices();
 
   server = app.listen(PORT, BIND_HOST, () => {
     console.log(`Hardware agent running on http://${BIND_HOST}:${PORT}`);
+    if (isDemoMode()) {
+      console.log(demoBanner());
+    }
     console.log("NGROK:", process.env.NGROK_URL || "(not set — local tests do not need it)");
   });
 
@@ -174,6 +182,10 @@ async function startHardwareService() {
   });
 
   heartbeatTimer = setInterval(heartbeat, 10_000);
+  if (isDemoMode()) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));
 }
