@@ -2,7 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { usageToChar, isTerminatorUsage } from "../src/devices/scanner/hidDecode.js";
 import { appendScanChunk } from "../src/devices/scanner/scanner.buffer.js";
-import { createWedgeState, pushWedgeKey } from "../src/devices/scanner/wedgeBuffer.js";
+import {
+  createWedgeState,
+  pushWedgeKey,
+  flushIdleWedge
+} from "../src/devices/scanner/wedgeBuffer.js";
 
 test("usageToChar maps letters and digits", () => {
   assert.equal(usageToChar(4, false), "a");
@@ -56,6 +60,26 @@ test("pushWedgeKey accepts a fast burst and ignores slow typing", () => {
   }
   const typed = pushWedgeKey(state, "ENTER", now + 300);
   assert.equal(typed.value, null);
+});
+
+test("flushIdleWedge finishes a fast burst with no Enter", () => {
+  let state = createWedgeState();
+  let now = 1000;
+  for (const key of "201650053396") {
+    now += 10;
+    state = pushWedgeKey(state, key, now).state;
+  }
+  assert.equal(flushIdleWedge(state, now + 50).value, null);
+  const flushed = flushIdleWedge(state, now + 200);
+  assert.equal(flushed.value, "201650053396");
+  assert.equal(flushed.state.buffer, "");
+});
+
+test("flushIdleWedge ignores short keyboard typing", () => {
+  let state = createWedgeState();
+  state = pushWedgeKey(state, "a", 1000).state;
+  state = pushWedgeKey(state, "b", 1050).state;
+  assert.equal(flushIdleWedge(state, 2000).value, null);
 });
 
 test("usageToChar maps symbols used by barcodes", () => {

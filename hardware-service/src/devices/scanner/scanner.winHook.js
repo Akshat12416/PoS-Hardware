@@ -8,7 +8,12 @@ import { fileURLToPath } from "url";
 import readline from "readline";
 import EventBus from "../../events/bus.js";
 import logger from "../../utils/logger.js";
-import { createWedgeState, pushWedgeKey } from "./wedgeBuffer.js";
+import {
+  createWedgeState,
+  pushWedgeKey,
+  flushIdleWedge,
+  WEDGE_IDLE_MS
+} from "./wedgeBuffer.js";
 
 const scriptPath = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -17,6 +22,19 @@ const scriptPath = path.join(
 
 let child = null;
 let wedgeState = createWedgeState();
+let idleTimer = null;
+
+function emitScan(value) {
+  EventBus.emit("barcode", value);
+  logger.info(`[SCANNER] Keyboard scan received: ${value}`);
+}
+
+function clearIdleTimer() {
+  if (idleTimer) {
+    clearTimeout(idleTimer);
+    idleTimer = null;
+  }
+}
 
 export function startWindowsWedgeCapture() {
   if (process.platform !== "win32") {
@@ -35,11 +53,20 @@ export function startWindowsWedgeCapture() {
   lines.on("line", (line) => {
     const token = String(line || "").trim();
     if (!token || token === "HOOK_READY") return;
-    const result = pushWedgeKey(wedgeState, token, Date.now(), 300);
+    const result = pushWedgeKey(wedgeState, token, Date.now());
     wedgeState = result.state;
-    if (!result.value) return;
-    EventBus.emit("barcode", result.value);
-    logger.info(`[SCANNER] Keyboard scan received: ${result.value}`);
+    clearIdleTimer();
+    if (result.value) {
+      emitScan(result.value);
+      return;
+    }
+    if (!wedgeState.buffer) return;
+    idleTimer = setTimeout(() => {
+      idleTimer = null;
+      const flushed = flushIdleWedge(wedgeState, Date.now());
+      wedgeState = flushed.state;
+      if (flushed.value) emitScan(flushed.value);
+    }, WEDGE_IDLE_MS);
   });
 
   child.stderr.on("data", (buf) => {
@@ -57,6 +84,7 @@ export function startWindowsWedgeCapture() {
 }
 
 export function stopWindowsWedgeCapture() {
+  clearIdleTimer();
   if (!child) return;
   const running = child;
   child = null;
