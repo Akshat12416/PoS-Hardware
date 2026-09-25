@@ -1,5 +1,7 @@
 # System-wide keyboard listener. Prints one token per key.
 # Scanner bursts are decided by the Node process.
+# Run with -Raw to print every key code for diagnosis.
+param([switch]$Raw)
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
@@ -60,7 +62,10 @@ public static class ScanHook {
     [DllImport("user32.dll")]
     private static extern IntPtr DispatchMessage(ref MSG lpMsg);
 
-    public static void Run() {
+    private static bool _raw;
+
+    public static void Run(bool raw) {
+        _raw = raw;
         _proc = HookCallback;
         _hook = SetWindowsHookEx(WH_KEYBOARD_LL, _proc, GetModuleHandle(null), 0);
         if (_hook == IntPtr.Zero) {
@@ -87,6 +92,9 @@ public static class ScanHook {
     private static IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam) {
         if (nCode >= 0 && (wParam == (IntPtr)WM_KEYDOWN || wParam == (IntPtr)WM_SYSKEYDOWN)) {
             KBDLLHOOKSTRUCT data = (KBDLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(KBDLLHOOKSTRUCT));
+            if (_raw) {
+                _keys.Enqueue("VK=" + data.vkCode + " SC=" + data.scanCode + " F=" + data.flags);
+            }
             string text = KeyText(data.vkCode, data.scanCode);
             if (!string.IsNullOrEmpty(text)) _keys.Enqueue(text);
         }
@@ -120,4 +128,4 @@ public static class ScanHook {
 }
 "@
 
-[ScanHook]::Run()
+[ScanHook]::Run([bool]$Raw)
