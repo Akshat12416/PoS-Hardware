@@ -10,6 +10,10 @@ import {
   initKeyboardWedgeScanner,
   closeKeyboardWedgeScanner
 } from "./scanner.hid.js";
+import {
+  startWindowsWedgeCapture,
+  stopWindowsWedgeCapture
+} from "./scanner.winHook.js";
 import { isDemoMode } from "../../utils/demoMode.js";
 
 let lastScan = null;
@@ -119,7 +123,23 @@ export async function initScannerInput(options = {}) {
     if (mode === "usb_hid" || mode === "auto") {
       deviceInfo = await initUsbHidScanner({
         vendorId: options.vendorId,
-        productId: options.productId
+        productId: options.productId,
+        onReadError: (err) => {
+          if (shuttingDown) return;
+          lastError = err.message;
+          if (process.platform !== "win32") return;
+          const hook = startWindowsWedgeCapture();
+          if (!hook.started) return;
+          activeMode = "keyboard_wedge";
+          deviceInfo = {
+            started: true,
+            mode: "keyboard_wedge",
+            fallback_from: "usb_hid",
+            reason: "USB HID read failed; capturing fast keyboard scans"
+          };
+          lastError = null;
+          logger.warn("[SCANNER] USB HID unreadable; keyboard wedge capture started");
+        }
       });
       if (deviceInfo?.started) {
         activeMode = "usb_hid";
@@ -164,6 +184,7 @@ export async function closeScanner() {
   shuttingDown = true;
   closeUsbHidScanner();
   closeKeyboardWedgeScanner();
+  stopWindowsWedgeCapture();
   if (scannerPort) {
     await new Promise((resolve) => {
       try {

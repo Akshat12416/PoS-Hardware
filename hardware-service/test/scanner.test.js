@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { usageToChar, isTerminatorUsage } from "../src/devices/scanner/hidDecode.js";
 import { appendScanChunk } from "../src/devices/scanner/scanner.buffer.js";
+import { createWedgeState, pushWedgeKey } from "../src/devices/scanner/wedgeBuffer.js";
 
 test("usageToChar maps letters and digits", () => {
   assert.equal(usageToChar(4, false), "a");
@@ -32,6 +33,29 @@ test("appendScanChunk yields every complete barcode", () => {
   assert.deepEqual(parsed.values, ["aaa", "bbb", "ccc"]);
   assert.equal(parsed.value, "ccc");
   assert.equal(parsed.rest, "partial");
+});
+
+test("pushWedgeKey accepts a fast burst and ignores slow typing", () => {
+  let state = createWedgeState();
+  let now = 1000;
+  for (const key of "201650053396") {
+    now += 20;
+    const step = pushWedgeKey(state, key, now);
+    state = step.state;
+    assert.equal(step.value, null);
+  }
+  const scanned = pushWedgeKey(state, "ENTER", now + 20);
+  assert.equal(scanned.value, "201650053396");
+
+  state = createWedgeState();
+  now = 5000;
+  for (const key of "hello") {
+    now += 300;
+    const step = pushWedgeKey(state, key, now);
+    state = step.state;
+  }
+  const typed = pushWedgeKey(state, "ENTER", now + 300);
+  assert.equal(typed.value, null);
 });
 
 test("usageToChar maps symbols used by barcodes", () => {

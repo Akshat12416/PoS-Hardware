@@ -124,8 +124,15 @@ export async function initUsbHidScanner(options = {}) {
     }
   });
 
+  let readFailed = false;
   hidDevice.on("error", (err) => {
+    if (readFailed) return;
+    readFailed = true;
     logger.error(`[SCANNER] USB HID error: ${err.message}`);
+    closeUsbHidScanner();
+    if (typeof options.onReadError === "function") {
+      options.onReadError(err);
+    }
   });
 
   logger.info(
