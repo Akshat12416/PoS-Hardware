@@ -17,7 +17,10 @@ export function isDrawerReady(cfg = {}) {
   return isDemoMode() || isDrawerConfigured(cfg);
 }
 
-export const OPEN_DRAWER_CMD = Buffer.from([0x1b, 0x70, 0x00, 0x37, 0x79]);
+export const OPEN_DRAWER_CMD = Buffer.from([
+  0x1b, 0x70, 0x00, 0x32, 0xfa,
+  0x1b, 0x70, 0x01, 0x32, 0xfa
+]);
 
 let lastOpenAt = null;
 let lastError = null;

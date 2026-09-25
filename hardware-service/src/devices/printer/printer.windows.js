@@ -182,25 +182,16 @@ export async function sendRawToPrinter(printerName, bytes) {
     throw new Error("Raw printer I/O is only supported on Windows");
   }
 
-  const tempFile = path.join(os.tmpdir(), `rawprint_${Date.now()}.bin`);
-  fs.writeFileSync(tempFile, Buffer.from(bytes));
-  const share = `\\\\localhost\\${name}`;
+  const script = path.join(process.cwd(), "scripts", "raw-print.ps1");
+  const payload = Buffer.from(bytes).toString("base64");
+  const command = `powershell -NoProfile -ExecutionPolicy Bypass -File "${script}" -PrinterName "${name.replace(/"/g, '\\"')}" -Base64 ${payload}`;
 
   try {
-    await execAsync(`cmd /c copy /b "${tempFile}" "${share}"`, {
-      timeout: 15000,
-      windowsHide: true
-    });
+    await execAsync(command, { timeout: 15000, windowsHide: true });
     return { success: true, printer_name: name };
   } catch (err) {
     throw new Error(
-      `Raw print to ${name} failed: ${err.message}. Confirm the printer is shared or use cash_drawer_mode=serial.`
+      `Raw print to ${name} failed: ${err.message}. The printer must accept RAW ESC/POS jobs.`
     );
-  } finally {
-    try {
-      fs.unlinkSync(tempFile);
-    } catch {
-      // ignore
-    }
   }
 }
