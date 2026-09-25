@@ -35,7 +35,7 @@ export function startWindowsWedgeCapture() {
   lines.on("line", (line) => {
     const token = String(line || "").trim();
     if (!token || token === "HOOK_READY") return;
-    const result = pushWedgeKey(wedgeState, token, Date.now());
+    const result = pushWedgeKey(wedgeState, token, Date.now(), 300);
     wedgeState = result.state;
     if (!result.value) return;
     EventBus.emit("barcode", result.value);

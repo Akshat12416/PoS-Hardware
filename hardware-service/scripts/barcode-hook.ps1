@@ -6,7 +6,6 @@ $ProgressPreference = "SilentlyContinue"
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
-using System.Text;
 
 public static class ScanHook {
     private const int WH_KEYBOARD_LL = 13;
@@ -48,12 +47,6 @@ public static class ScanHook {
 
     [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
     private static extern IntPtr GetModuleHandle(string lpModuleName);
-
-    [DllImport("user32.dll")]
-    private static extern int ToUnicode(uint wVirtKey, uint wScanCode, byte[] lpKeyState, [Out] StringBuilder pwszBuff, int cchBuff, uint wFlags);
-
-    [DllImport("user32.dll")]
-    private static extern bool GetKeyboardState(byte[] lpKeyState);
 
     [DllImport("user32.dll")]
     private static extern int GetMessage(ref MSG lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
@@ -99,14 +92,15 @@ public static class ScanHook {
     private static string KeyText(uint vk, uint scan) {
         if (vk == 0x0D) return "ENTER";
         if (vk == 0x09) return "TAB";
-        byte[] state = new byte[256];
-        GetKeyboardState(state);
-        StringBuilder sb = new StringBuilder(8);
-        int n = ToUnicode(vk, scan, state, sb, sb.Capacity, 0);
-        if (n != 1) return null;
-        string ch = sb.ToString();
-        if (ch.Length != 1 || char.IsControl(ch[0])) return null;
-        return ch;
+        if (vk == 0xE7 && scan >= 32 && scan < 127) return ((char)scan).ToString();
+        if (vk >= 0x30 && vk <= 0x39) return ((char)vk).ToString();
+        if (vk >= 0x41 && vk <= 0x5A) return ((char)(vk + 32)).ToString();
+        if (vk >= 0x60 && vk <= 0x69) return ((char)('0' + (vk - 0x60))).ToString();
+        if (vk == 0x20) return " ";
+        if (vk == 0xBD || vk == 0x6D) return "-";
+        if (vk == 0xBE || vk == 0x6E) return ".";
+        if (vk == 0xBF) return "/";
+        return null;
     }
 }
 "@
