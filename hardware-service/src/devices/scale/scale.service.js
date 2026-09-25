@@ -158,6 +158,13 @@ export async function initScale(options = {}) {
       port.open((err) => (err ? reject(err) : resolve()));
     });
 
+    await new Promise((resolve) => {
+      port.set({ dtr: true, rts: true }, (err) => {
+        if (err) logger.warn(`[SCALE] Could not raise DTR/RTS: ${err.message}`);
+        resolve();
+      });
+    });
+
     serialOpen = true;
     lastError = null;
     logger.info(
@@ -190,7 +197,10 @@ export async function initScale(options = {}) {
       pollTimer = setInterval(() => {
         if (!port || !port.isOpen) return;
         port.write("S11\r", (err) => {
-          if (err) lastError = err.message;
+          if (err) {
+            lastError = err.message;
+            logger.warn(`[SCALE] Poll write failed: ${err.message}`);
+          }
         });
       }, POLL_MS);
     }
