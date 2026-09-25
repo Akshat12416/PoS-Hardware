@@ -5,7 +5,9 @@ $ProgressPreference = "SilentlyContinue"
 
 Add-Type -TypeDefinition @"
 using System;
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 public static class ScanHook {
     private const int WH_KEYBOARD_LL = 13;
@@ -13,6 +15,7 @@ public static class ScanHook {
     private const int WM_SYSKEYDOWN = 0x0104;
     private static IntPtr _hook = IntPtr.Zero;
     private static HookProc _proc;
+    private static readonly ConcurrentQueue<string> _keys = new ConcurrentQueue<string>();
 
     private delegate IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam);
 
@@ -65,6 +68,10 @@ public static class ScanHook {
             return;
         }
 
+        Thread writer = new Thread(WriteKeys);
+        writer.IsBackground = true;
+        writer.Start();
+
         Console.WriteLine("HOOK_READY");
         Console.Out.Flush();
 
@@ -81,12 +88,20 @@ public static class ScanHook {
         if (nCode >= 0 && (wParam == (IntPtr)WM_KEYDOWN || wParam == (IntPtr)WM_SYSKEYDOWN)) {
             KBDLLHOOKSTRUCT data = (KBDLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(KBDLLHOOKSTRUCT));
             string text = KeyText(data.vkCode, data.scanCode);
-            if (!string.IsNullOrEmpty(text)) {
-                Console.WriteLine(text);
-                Console.Out.Flush();
-            }
+            if (!string.IsNullOrEmpty(text)) _keys.Enqueue(text);
         }
         return CallNextHookEx(_hook, nCode, wParam, lParam);
+    }
+
+    private static void WriteKeys() {
+        while (true) {
+            string text;
+            while (_keys.TryDequeue(out text)) {
+                Console.WriteLine(text);
+            }
+            Console.Out.Flush();
+            Thread.Sleep(5);
+        }
     }
 
     private static string KeyText(uint vk, uint scan) {
