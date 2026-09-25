@@ -115,7 +115,12 @@ async function initDevices() {
 
   await initScale({
     path: config.scale_serial_path,
-    baudRate: config.scale_baud_rate
+    baudRate: config.scale_baud_rate,
+    protocol: config.scale_protocol,
+    unit: config.scale_unit,
+    dataBits: config.scale_data_bits,
+    parity: config.scale_parity,
+    stopBits: config.scale_stop_bits
   });
 
   await initScannerInput({

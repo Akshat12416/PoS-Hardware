@@ -42,6 +42,11 @@ let config = {
 
   scale_serial_path: envString("SCALE_SERIAL_PATH", ""),
   scale_baud_rate: envNumber("SCALE_BAUD_RATE", 9600),
+  scale_protocol: envString("SCALE_PROTOCOL", "magellan"),
+  scale_unit: envString("SCALE_UNIT", "lb"),
+  scale_data_bits: envNumber("SCALE_DATA_BITS", null),
+  scale_parity: envString("SCALE_PARITY", ""),
+  scale_stop_bits: envNumber("SCALE_STOP_BITS", null),
 
   cash_drawer_mode: envString("CASH_DRAWER_MODE", "unconfigured"),
   cash_drawer_serial_path: envString("CASH_DRAWER_SERIAL_PATH", ""),

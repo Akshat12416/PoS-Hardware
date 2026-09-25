@@ -24,7 +24,8 @@ router.get("/weight", (_req, res) => {
   res.json({
     success: true,
     weight: weight != null ? weight : null,
-    unit: "kg",
+    unit: health.unit,
+    status: health.status,
     last_weight_at: health.last_weight_at,
     connected: health.connected,
     demo: Boolean(health.demo)

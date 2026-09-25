@@ -1,22 +1,28 @@
 /**
  * Scale service: Datalogic Magellan 9300i / Remote Weight 8300RD over serial.
- * Status reflects the real port. Parser stays tolerant until Magellan samples are confirmed.
+ * Magellan single-cable RS-232 only replies when polled with S11.
  */
 import EventBus from "../../events/bus.js";
 import logger from "../../utils/logger.js";
-import parseWeight from "./scale.parser.js";
+import parseWeight, { parseMagellan } from "./scale.parser.js";
 import { appendScaleChunk } from "./scale.buffer.js";
 import { isDemoMode } from "../../utils/demoMode.js";
+
+const POLL_MS = 500;
 
 let lastWeight = null;
 let lastWeightAt = null;
 let lastRaw = null;
+let lastStatus = null;
 let lastError = null;
 let parseErrors = 0;
 let port = null;
 let configuredPath = null;
 let configuredBaud = 9600;
+let configuredProtocol = "magellan";
+let configuredUnit = "lb";
 let reconnectTimer = null;
+let pollTimer = null;
 let shuttingDown = false;
 let serialOpen = false;
 
@@ -32,12 +38,22 @@ export function getScaleHealth() {
     connected: demo ? true : Boolean(port && serialOpen),
     path: demo ? "DEMO" : configuredPath,
     baud_rate: configuredBaud,
+    protocol: demo ? "demo" : configuredProtocol,
+    unit: demo ? "kg" : configuredUnit,
+    status: lastStatus,
     last_weight: lastWeight,
     last_weight_at: lastWeightAt,
     last_raw: lastRaw,
     last_error: lastError,
     parse_errors: parseErrors
   };
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
 }
 
 function scheduleReconnect(openPort) {
@@ -52,11 +68,48 @@ function scheduleReconnect(openPort) {
   }, 5000);
 }
 
+function handleLine(line) {
+  lastRaw = line;
+
+  if (configuredProtocol === "magellan") {
+    const reply = parseMagellan(line, configuredUnit);
+    if (!reply) {
+      parseErrors += 1;
+      logger.warn("[SCALE] Unparsed Magellan reply", { raw: line });
+      return;
+    }
+    lastStatus = reply.status;
+    if (reply.weight === null) return;
+    const changed = reply.weight !== lastWeight;
+    lastWeight = reply.weight;
+    lastWeightAt = new Date().toISOString();
+    if (changed) {
+      logger.info(`[SCALE] Weight received: ${reply.weight} ${configuredUnit}`);
+      EventBus.emit("weight", reply.weight);
+    }
+    return;
+  }
+
+  const weight = parseWeight(line);
+  if (weight !== null) {
+    lastWeight = weight;
+    lastWeightAt = new Date().toISOString();
+    lastStatus = "stable";
+    logger.info(`[SCALE] Weight received: ${weight}`);
+    EventBus.emit("weight", weight);
+  } else {
+    parseErrors += 1;
+    logger.warn("[SCALE] Unparsed weight line", { raw: line });
+  }
+}
+
 export async function initScale(options = {}) {
   const path = String(options.path || "").trim();
   const baudRate = options.baudRate || 9600;
   configuredPath = path || null;
   configuredBaud = baudRate;
+  configuredProtocol = String(options.protocol || "magellan").toLowerCase();
+  configuredUnit = String(options.unit || "lb").toLowerCase();
   shuttingDown = false;
 
   if (options.demo || isDemoMode()) {
@@ -75,8 +128,14 @@ export async function initScale(options = {}) {
     return { started: false, reason: lastError };
   }
 
+  const magellan = configuredProtocol === "magellan";
+  const dataBits = options.dataBits || (magellan ? 7 : 8);
+  const parity = options.parity || (magellan ? "even" : "none");
+  const stopBits = options.stopBits || 1;
+
   async function openPort() {
     const { SerialPort } = await import("serialport");
+    stopPolling();
     if (port) {
       try {
         if (port.isOpen) port.close();
@@ -86,7 +145,14 @@ export async function initScale(options = {}) {
       port = null;
     }
 
-    port = new SerialPort({ path, baudRate, autoOpen: false });
+    port = new SerialPort({
+      path,
+      baudRate,
+      dataBits,
+      parity,
+      stopBits,
+      autoOpen: false
+    });
 
     await new Promise((resolve, reject) => {
       port.open((err) => (err ? reject(err) : resolve()));
@@ -94,25 +160,15 @@ export async function initScale(options = {}) {
 
     serialOpen = true;
     lastError = null;
-    logger.info(`[SCALE] Connected on ${path} @ ${baudRate}`);
+    logger.info(
+      `[SCALE] Connected on ${path} @ ${baudRate} ${dataBits}${parity[0].toUpperCase()}${stopBits} (${configuredProtocol})`
+    );
 
     let buffer = "";
     port.on("data", (data) => {
       const parsed = appendScaleChunk(buffer, data.toString());
       buffer = parsed.rest;
-      for (const line of parsed.lines) {
-        lastRaw = line;
-        const weight = parseWeight(line);
-        if (weight !== null) {
-          lastWeight = weight;
-          lastWeightAt = new Date().toISOString();
-          logger.info(`[SCALE] Weight received: ${weight}`);
-          EventBus.emit("weight", weight);
-        } else {
-          parseErrors += 1;
-          logger.warn("[SCALE] Unparsed weight line", { raw: lastRaw });
-        }
-      }
+      for (const line of parsed.lines) handleLine(line);
     });
 
     port.on("error", (err) => {
@@ -123,16 +179,26 @@ export async function initScale(options = {}) {
 
     port.on("close", () => {
       serialOpen = false;
+      stopPolling();
       if (!shuttingDown) {
         lastError = lastError || "serial port closed";
         scheduleReconnect(openPort);
       }
     });
+
+    if (magellan) {
+      pollTimer = setInterval(() => {
+        if (!port || !port.isOpen) return;
+        port.write("S11\r", (err) => {
+          if (err) lastError = err.message;
+        });
+      }, POLL_MS);
+    }
   }
 
   try {
     await openPort();
-    return { started: true, path, baudRate };
+    return { started: true, path, baudRate, protocol: configuredProtocol };
   } catch (err) {
     lastError = err.message;
     serialOpen = false;
@@ -144,6 +210,7 @@ export async function initScale(options = {}) {
 
 export async function closeScale() {
   shuttingDown = true;
+  stopPolling();
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
