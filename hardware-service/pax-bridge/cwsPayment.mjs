@@ -26,7 +26,12 @@ function readConvergeCredentials() {
       "",
     userId: process.env.CONVERGE_SSL_USER_ID || "",
     pin: process.env.CONVERGE_SSL_PIN || "",
-    vendorId: process.env.CONVERGE_SSL_VENDOR_ID || ""
+    vendorId: process.env.CONVERGE_SSL_VENDOR_ID || "",
+    app: process.env.CWS_GATEWAY_APP || "VMM",
+    email: process.env.CWS_GATEWAY_EMAIL || "",
+    vendorAppName: process.env.CWS_VENDOR_APP_NAME || "Southwest",
+    vendorAppVersion: process.env.CWS_VENDOR_APP_VERSION || "1",
+    paymentGatewayEnvironment: process.env.CWS_PAYMENT_GATEWAY_ENVIRONMENT || "DEMO"
   };
 }
 
@@ -165,13 +170,35 @@ export class CwsPaymentService {
       throw err;
     }
 
-    const { merchantId, userId, pin, vendorId } = this.credentials;
+    const {
+      merchantId,
+      userId,
+      pin,
+      vendorId,
+      app,
+      email,
+      vendorAppName,
+      vendorAppVersion,
+      paymentGatewayEnvironment
+    } = this.credentials;
+    const parameters = {
+      app,
+      merchantId,
+      userId,
+      pin,
+      vendorId,
+      vendorAppName,
+      vendorAppVersion,
+      paymentGatewayEnvironment,
+      partialApprovalAllowed: true
+    };
+    if (email) parameters.email = email;
     const response = await this.client.sendUntilComplete(
       this.client.buildCommand({
         method: "openPaymentGateway",
         targetType: "paymentGatewayConverge",
         requestId: newRequestId("open-gw"),
-        parameters: { merchantId, userId, pin, vendorId }
+        parameters
       })
     );
 
