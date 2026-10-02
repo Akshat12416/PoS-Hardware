@@ -1,51 +1,58 @@
-# Tested register hardware for the POS
+# Register hardware for the POS
 
 Date of the live test: 25 September 2026, register CYGNUS-POS.
 
-The POS does not open the printer, scanner, or scale itself. A hardware agent already running on that register does. The POS calls the agent over HTTP. Wire in only the three devices below. They were proven on this register with demo mode off.
+The POS does not open the devices itself. A hardware agent on the register does. The cloud POS calls the cloud service below. That service forwards the call to the register.
 
-Do not wire the cash drawer or the card machine from this document. Those two were not proven. See the last section.
+Scanner, scale, and receipt printer were proven on this register with demo mode off. Cash drawer and card machine are included so the POS can be built against them. Their physical result was not proven. Each of those sections says **Not tested**.
 
-## Where to call
+## Base URL
 
-The agent listens only on the register:
+```text
+https://pos-7mvx.onrender.com
+```
 
-`http://127.0.0.1:3001`
+Every path below is that host plus the path. Example: `https://pos-7mvx.onrender.com/api/scanner/last`.
 
-The POS process has to run on that same PC, or be able to reach that address. There is no separate cloud URL for these device calls.
+This is the cloud service, checked live: `GET /health` returns `{"status":"OK"}`. It is not `http://127.0.0.1:3001`. That address only exists on the register and cannot be called from the cloud POS.
 
-Every device call needs these two headers. The values are the `terminal_uid` and `agent_secret` already stored in that register's `config.json`. Do not invent them and do not copy them from another computer.
+Send these headers on every device call:
 
 ```http
-x-terminal-id: <terminal_uid from that register's config.json>
+x-store-id: <store_id from that register's config.json>
 x-agent-secret: <agent_secret from that register's config.json>
 Content-Type: application/json
 ```
 
-`GET /health` does not need those headers. A healthy agent answers:
+The cloud service looks up the register from `x-store-id`. A missing store id returns `400`. A wrong secret returns `401`. If the register agent is not currently connected, the call returns `404` with `No active terminal`, or `502` with `Hardware agent unreachable`.
 
-```json
-{ "status": "OK", "role": "hardware-agent", "demo": false, "bind": "127.0.0.1:3001" }
-```
+Call this from the POS server. Do not call it from the browser page.
 
-`demo` must be `false`. If it is `true`, the agent is not talking to the real devices.
+`demo` in any device response must be `false`. A `true` value means the agent is not talking to the real device.
 
-If the headers are missing or wrong, the agent returns `401`. If that register is not approved, device calls are refused (`403` or `423`). Fix the register config before changing the POS.
+## Devices
 
-## Devices you can wire now
+| Device | Call | Tested on the register | What the POS should do |
+| --- | --- | --- | --- |
+| Handheld barcode scanner | `GET /api/scanner/status` | Yes | Confirm the scanner listener is up. |
+| Handheld barcode scanner | `GET /api/scanner/last` | Yes | Read the last barcode and add that item. |
+| Magellan scale | `GET /api/scale/status` | Yes | Confirm the scale is connected. |
+| Magellan scale | `GET /api/scale/weight` | Yes | Read the weight for an item sold by the pound. |
+| Epson receipt printer | `GET /api/cloudprinter/list` | Yes | Confirm the working printer name is installed. |
+| Epson receipt printer | `POST /api/cloud/printer/print` | Yes | Print the customer receipt. |
+| Cash drawer | `GET /api/cash-drawer/status` | No | Read whether a drawer mode is configured. |
+| Cash drawer | `POST /api/cash-drawer/open` | No | Send the open command after a cash sale. |
+| Ingenico Lane 3600 | `GET /api/payment/status` | No | Read whether the card reader is ready. |
+| Ingenico Lane 3600 | `POST /api/payment/initiate` | No | Send the amount and wait for the customer. |
+| Ingenico Lane 3600 | `POST /api/payment/cancel` | No | Stop the payment while the customer is still at the reader. |
+| Ingenico Lane 3600 | `POST /api/payment/void` | No | Void a sale that returned a transaction id. |
+| Ingenico Lane 3600 | `POST /api/payment/refund` | No | Refund an amount. |
 
-| Device | Call | What the POS should do |
-| --- | --- | --- |
-| Handheld barcode scanner | `GET /api/scanner/status` | Confirm the scanner listener is up before trusting a scan. |
-| Handheld barcode scanner | `GET /api/scanner/last` | Read the last barcode and add that item. |
-| Magellan scale | `GET /api/scale/status` | Confirm the scale port is open. |
-| Magellan scale | `GET /api/scale/weight` | Read the weight for an item sold by the pound. |
-| Epson receipt printer | `GET /api/printer/list` | Confirm the working printer name is installed. |
-| Epson receipt printer | `POST /api/printer/print` | Print the customer receipt after the sale. |
+The card reader is an Ingenico Lane 3600. The path is `/api/payment`. Do not send a different card-terminal protocol.
 
 ## Scanner
 
-Proven device: Symbol handheld scanner. A real scan of `201650053396` was stored by the agent and returned by `GET /api/scanner/last`. The scanner does not press Enter. The agent finishes the barcode on its own. The POS only reads the result.
+Proven. A real scan of `201650053396` was stored by the agent and returned by the last-scan call. The scanner does not press Enter. The agent finishes the barcode. The POS only reads the result.
 
 Check first:
 
@@ -78,7 +85,7 @@ Rules for the POS:
 
 ## Scale
 
-Proven device: the Magellan scale. With a box on the platform, `GET /api/scale/weight` returned `10.4` pounds, `status` `stable`, `connected` `true`. The customer-facing scale display is not the value to charge. Use this API.
+Proven. With a box on the platform, the weight call returned `10.4` pounds, `status` `stable`, `connected` `true`. The customer-facing scale display is not the value to charge. Use this API.
 
 Check first:
 
@@ -125,7 +132,7 @@ Other `status` values mean do not price the item yet:
 
 ## Receipt printer
 
-Proven device: the Epson queue named exactly:
+Proven. The working queue is exactly:
 
 `EPSON TM-T88V ReceiptE4`
 
@@ -135,7 +142,7 @@ Do not print to `EPSON TM-T88V Receipt`. That queue was offline on this register
 
 Confirm the name:
 
-`GET /api/printer/list`
+`GET /api/cloudprinter/list`
 
 ```json
 {
@@ -148,11 +155,11 @@ Confirm the name:
 }
 ```
 
-`printers` is every queue Windows has installed. More than one name will be in that list. `configured_printer` is the queue the agent uses when the body omits `printer_name`. That value must be `EPSON TM-T88V ReceiptE4`.
+`printers` is every queue Windows has installed. More than one name will be in that list. `configured_printer` is the queue used when the body omits `printer_name`. That value must be `EPSON TM-T88V ReceiptE4`.
 
 Print:
 
-`POST /api/printer/print`
+`POST /api/cloud/printer/print`
 
 ```json
 {
@@ -191,16 +198,130 @@ Treat the print as failed unless `success` is `true`, `demo` is `false`, and `pr
 
 `price` on each row is the unit price. The agent prints `qty` and `name` on the left and that unit price on the right.
 
-## How a normal sale should call these
+## Cash drawer
+
+**Not tested.** The API on this register returned success and the drawer did not open. Build the call now. Do not treat a success response as proof the till moved until a later test shows the drawer physically open.
+
+Check:
+
+`GET /api/cash-drawer/status`
+
+```json
+{
+  "success": true,
+  "configured": true,
+  "mode": "printer",
+  "demo": false,
+  "printer_name": "EPSON TM-T88V ReceiptE4",
+  "last_open_at": null,
+  "last_error": null
+}
+```
+
+`configured: true` only means a drawer mode is saved. On this register the mode is `printer`, because the drawer cable is on the Epson. It does not mean the last open moved the drawer.
+
+Open:
+
+`POST /api/cash-drawer/open`
+
+No body. The response the API returns is:
+
+```json
+{
+  "success": true,
+  "message": "Cash drawer open command sent",
+  "mode": "printer",
+  "demo": false
+}
+```
+
+`503` means the drawer mode is not configured. `500` means the open command failed before it was sent. A `200` with `success: true` and `demo: false` means the command was sent. On the last live attempt, that still left the drawer closed.
+
+For a cash sale, call open after the sale is saved. If this call fails, keep the sale and show the error. Do not roll the sale back because the drawer call failed.
+
+## Card machine
+
+**Not tested.** The reader is an Ingenico Lane 3600 on USB. The payment gateway on the register did open. No card sale, cancel, void, or refund was completed, so there is no proven approval body from this register. Build these calls, and finish a sale only when the response matches the success rule below.
+
+Ready check:
+
+`GET /api/payment/status`
+
+Treat the reader as ready only when `success` is `true`, `ready` is `true`, `cws_reachable` is `true`, and `reader_detected` is `true`. `gateway_ready` means the payment gateway is already open. This shape was not re-checked as a full sale.
+
+Start a sale:
+
+`POST /api/payment/initiate`
+
+```json
+{
+  "amount": 1.0,
+  "currency": "USD",
+  "order_id": "ORDER-1001"
+}
+```
+
+`amount` is required and must be a number greater than 0. `currency` defaults to `USD`. `order_id` is optional.
+
+The customer is at the reader for this whole call. Wait up to **120 seconds**. A shorter client timeout will fail a sale that is still in progress.
+
+The code returns this kind of body after a completed sale. It was not seen on this register:
+
+```json
+{
+  "success": true,
+  "approved": true,
+  "status": "approved",
+  "transactionId": "TRANSACTION-ID",
+  "authCode": "AUTH",
+  "amount": 1.0,
+  "currency": "USD",
+  "order_id": "ORDER-1001"
+}
+```
+
+Save the sale only when the HTTP status is `200`, `success` is `true`, and `approved` is `true`. Store `transactionId`. Any other result is not a paid sale. A decline comes back as `success: false`. Show that message and leave the sale unpaid.
+
+Cancel the sale currently on the reader:
+
+`POST /api/payment/cancel`
+
+No body. Use this for the Cancel Payment button while initiate is still waiting.
+
+Void a finished sale:
+
+`POST /api/payment/void`
+
+```json
+{
+  "ref_num": "TRANSACTION-ID"
+}
+```
+
+`ref_num` is required. Put the `transactionId` from initiate into `ref_num`. An optional `amount` may be sent with it.
+
+Refund:
+
+`POST /api/payment/refund`
+
+```json
+{
+  "amount": 1.0,
+  "ref_num": "TRANSACTION-ID"
+}
+```
+
+`amount` is required and must be greater than 0. `ref_num` is the `transactionId` from the original sale when you have it.
+
+## How a sale should call these
 
 1. Keep polling `GET /api/scanner/last`. When `scan.at` changes, look up `scan.value` and add the item.
 2. For an item sold by weight, poll `GET /api/scale/weight` until `status` is `stable`, then use `weight` as the pounds.
-3. Take payment in the POS. This document does not cover the card machine.
-4. After the sale is saved, `POST /api/printer/print` with the sold lines and the total.
-5. If the print call fails, keep the sale and offer a reprint. Do not roll the sale back because paper failed.
+3. Cash: save the sale, then `POST /api/cash-drawer/open`. This open is not tested. Keep the sale if the drawer call fails.
+4. Card: `POST /api/payment/initiate` and wait up to 120 seconds. Save the sale only when `approved` is `true`. This sale is not tested.
+5. After the sale is saved, `POST /api/cloud/printer/print` with the sold lines and the total.
+6. If the print call fails, keep the sale and offer a reprint.
 
-## Do not wire these yet
+## What has to be running
 
-**Cash drawer.** `POST /api/cash-drawer/open` can return `success: true` while the drawer stays closed. On this register the kick bytes reached the printer and the drawer did not move and did not click. Do not open the drawer from the POS, and do not block a cash sale on that call, until a later test shows the drawer physically open.
-
-**Card machine.** The reader is an Ingenico Lane 3600, reached through `POST /api/payment/initiate` on this same agent. The gateway opened on the register. A card sale was not completed. Do not finish a sale from that endpoint until a real approved response has been seen on this register.
+The cloud URL stays the same. It can reach the register only while the register agent is connected. If the developer gets `No active terminal` or `Hardware agent unreachable`, the register side is down. That is not a bug in the POS paths above.
