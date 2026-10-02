@@ -324,4 +324,17 @@ Refund:
 
 ## What has to be running
 
-The cloud URL stays the same. It can reach the register only while the register agent is connected. If the developer gets `No active terminal` or `Hardware agent unreachable`, the register side is down. That is not a bug in the POS paths above.
+The POS base URL stays `https://pos-7mvx.onrender.com`. Do not call the register tunnel directly.
+
+The cloud service can reach the register only while both of these stay open on CYGNUS-POS:
+
+- The hardware agent, `node src\hardware-service.js`
+- The ngrok window forwarding to port 3001
+
+The agent `.env` value `NGROK_URL` must be the https address shown in that ngrok window. Right now that address is:
+
+`https://nonexperimental-dagny-diploic.ngrok-free.dev`
+
+If ngrok is closed and opened again, that address can change. Put the new one in `NGROK_URL` and restart the agent. The POS base URL does not change.
+
+The agent is connected when its window prints `[HEARTBEAT] Cloud response:` with `"success": true`. If the developer gets `No active terminal` or `Hardware agent unreachable`, the agent or ngrok is down. That is not a bug in the POS paths above.
