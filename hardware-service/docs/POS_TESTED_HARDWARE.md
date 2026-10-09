@@ -200,7 +200,7 @@ Treat the print as failed unless `success` is `true`, `demo` is `false`, and `pr
 
 ## Cash drawer
 
-Proven on 9 October 2026 with the new drawer. A raw job to the queue `EPSON RAW` printed `DRAWER TEST` and the drawer opened. The cable is in the Epson **DK** socket. The key has to be unlocked.
+Proven on 9 October 2026 with the new drawer. A raw job to the queue `EPSON RAW` printed `DRAWER TEST` and the drawer opened. Then `POST /api/cash-drawer/open` returned `success: true`, `mode: printer`, `demo: false`, and the drawer opened again. The cable is in the Epson **DK** socket. The key has to be unlocked. The register `.env` has `CASH_DRAWER_PRINTER_NAME=EPSON RAW`.
 
 Receipts stay on `EPSON TM-T88V ReceiptE4`. That queue prints text and drops the drawer pulse. The open call has to send the pulse to `EPSON RAW`.
 
@@ -220,7 +220,7 @@ Check:
 }
 ```
 
-`configured: true` only means a drawer mode is saved. On this register the mode is `printer`, because the drawer cable is on the Epson. It does not mean the last open moved the drawer.
+`configured: true` means a drawer mode is saved. On this register the mode is `printer`, because the drawer cable is in the Epson **DK** socket. The kick queue is `EPSON RAW`.
 
 Open:
 
