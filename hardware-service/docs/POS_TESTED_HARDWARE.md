@@ -4,7 +4,7 @@ Date of the live test: 25 September 2026, register CYGNUS-POS.
 
 The POS does not open the devices itself. A hardware agent on the register does. The cloud POS calls the cloud service below. That service forwards the call to the register.
 
-Scanner, scale, and receipt printer were proven on this register with demo mode off. Cash drawer and card machine are included so the POS can be built against them. Their physical result was not proven. Each of those sections says **Not tested**.
+Scanner, scale, receipt printer, and cash drawer were proven on this register with demo mode off. The card machine is included so the POS can be built against it. A card sale was not completed. That section says **Not tested**.
 
 ## Base URL
 
@@ -40,8 +40,8 @@ Call this from the POS server. Do not call it from the browser page.
 | Magellan scale | `GET /api/scale/weight` | Yes | Read the weight for an item sold by the pound. |
 | Epson receipt printer | `GET /api/cloudprinter/list` | Yes | Confirm the working printer name is installed. |
 | Epson receipt printer | `POST /api/cloud/printer/print` | Yes | Print the customer receipt. |
-| Cash drawer | `GET /api/cash-drawer/status` | No | Read whether a drawer mode is configured. |
-| Cash drawer | `POST /api/cash-drawer/open` | No | Send the open command after a cash sale. |
+| Cash drawer | `GET /api/cash-drawer/status` | Yes | Read whether a drawer mode is configured. Mode on this register is `printer`. |
+| Cash drawer | `POST /api/cash-drawer/open` | Yes | Open the drawer after a cash sale. The pulse must go to `EPSON RAW`, not the receipt queue. |
 | Ingenico Lane 3600 | `GET /api/payment/status` | No | Read whether the card reader is ready. |
 | Ingenico Lane 3600 | `POST /api/payment/initiate` | No | Send the amount and wait for the customer. |
 | Ingenico Lane 3600 | `POST /api/payment/cancel` | No | Stop the payment while the customer is still at the reader. |
@@ -200,7 +200,9 @@ Treat the print as failed unless `success` is `true`, `demo` is `false`, and `pr
 
 ## Cash drawer
 
-**Not tested.** The API on this register returned success and the drawer did not open. Build the call now. Do not treat a success response as proof the till moved until a later test shows the drawer physically open.
+Proven on 9 October 2026 with the new drawer. A raw job to the queue `EPSON RAW` printed `DRAWER TEST` and the drawer opened. The cable is in the Epson **DK** socket. The key has to be unlocked.
+
+Receipts stay on `EPSON TM-T88V ReceiptE4`. That queue prints text and drops the drawer pulse. The open call has to send the pulse to `EPSON RAW`.
 
 Check:
 
@@ -235,7 +237,7 @@ No body. The response the API returns is:
 }
 ```
 
-`503` means the drawer mode is not configured. `500` means the open command failed before it was sent. A `200` with `success: true` and `demo: false` means the command was sent. On the last live attempt, that still left the drawer closed.
+`503` means the drawer mode is not configured. `500` means the open command failed before it was sent. A `200` with `success: true` and `demo: false` means the pulse was sent to the kick queue. On this register that queue is `EPSON RAW`.
 
 For a cash sale, call open after the sale is saved. If this call fails, keep the sale and show the error. Do not roll the sale back because the drawer call failed.
 
@@ -317,7 +319,7 @@ Refund:
 
 1. Keep polling `GET /api/scanner/last`. When `scan.at` changes, look up `scan.value` and add the item.
 2. For an item sold by weight, poll `GET /api/scale/weight` until `status` is `stable`, then use `weight` as the pounds.
-3. Cash: save the sale, then `POST /api/cash-drawer/open`. This open is not tested. Keep the sale if the drawer call fails.
+3. Cash: save the sale, then `POST /api/cash-drawer/open`. Keep the sale if the drawer call fails.
 4. Card: `POST /api/payment/initiate` and wait up to 120 seconds. Save the sale only when `approved` is `true`. This sale is not tested.
 5. After the sale is saved, `POST /api/cloud/printer/print` with the sold lines and the total.
 6. If the print call fails, keep the sale and offer a reprint.

@@ -54,3 +54,23 @@ test("isDrawerConfigured requires an explicit mode and target", () => {
     true
   );
 });
+
+test("resolveDrawerKickPrinter prefers the raw kick queue", async () => {
+  const { resolveDrawerKickPrinter } = await import(
+    "../src/devices/cashDrawer/cashDrawer.logic.js"
+  );
+  assert.equal(
+    resolveDrawerKickPrinter({
+      printer_name: "EPSON TM-T88V ReceiptE4",
+      cash_drawer_printer_name: "EPSON RAW"
+    }),
+    "EPSON RAW"
+  );
+  assert.equal(
+    resolveDrawerKickPrinter({
+      printer_name: "EPSON TM-T88V ReceiptE4",
+      cash_drawer_printer_name: ""
+    }),
+    "EPSON TM-T88V ReceiptE4"
+  );
+});

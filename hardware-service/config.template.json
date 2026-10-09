@@ -12,6 +12,7 @@
   "cash_drawer_mode": "unconfigured",
   "cash_drawer_serial_path": "",
   "cash_drawer_baud_rate": 9600,
+  "cash_drawer_printer_name": "",
   "scanner_mode": "auto",
   "scanner_serial_path": "",
   "scanner_baud_rate": 9600,

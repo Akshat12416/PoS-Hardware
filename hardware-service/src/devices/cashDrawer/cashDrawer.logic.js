@@ -18,3 +18,9 @@ export function drawerDiscoveryHint(cfg = {}) {
   if (resolveDrawerMode(cfg) !== "unconfigured") return null;
   return "See docs/CASH_DRAWER_DISCOVERY.md before enabling serial or printer kick";
 }
+
+/** Receipts stay on printer_name. The kick can use a raw queue that actually delivers bytes. */
+export function resolveDrawerKickPrinter(cfg = {}) {
+  const dedicated = String(cfg.cash_drawer_printer_name || "").trim();
+  return dedicated || String(cfg.printer_name || "").trim();
+}

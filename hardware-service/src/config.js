@@ -51,6 +51,7 @@ let config = {
   cash_drawer_mode: envString("CASH_DRAWER_MODE", "unconfigured"),
   cash_drawer_serial_path: envString("CASH_DRAWER_SERIAL_PATH", ""),
   cash_drawer_baud_rate: envNumber("CASH_DRAWER_BAUD_RATE", 9600),
+  cash_drawer_printer_name: envString("CASH_DRAWER_PRINTER_NAME", ""),
 
   scanner_mode: envString("SCANNER_MODE", "auto"),
   scanner_serial_path: envString("SCANNER_SERIAL_PATH", ""),
@@ -114,6 +115,9 @@ if (process.env.SCANNER_MODE !== undefined) {
 }
 if (process.env.CASH_DRAWER_MODE !== undefined) {
   config.cash_drawer_mode = String(process.env.CASH_DRAWER_MODE);
+}
+if (process.env.CASH_DRAWER_PRINTER_NAME !== undefined) {
+  config.cash_drawer_printer_name = String(process.env.CASH_DRAWER_PRINTER_NAME);
 }
 if (process.env.CASH_DRAWER_BAUD_RATE !== undefined) {
   config.cash_drawer_baud_rate = envNumber("CASH_DRAWER_BAUD_RATE", 9600);

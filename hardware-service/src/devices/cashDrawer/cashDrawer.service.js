@@ -8,6 +8,7 @@ import { isDemoMode } from "../../utils/demoMode.js";
 import {
   isDrawerConfigured,
   resolveDrawerMode,
+  resolveDrawerKickPrinter,
   drawerDiscoveryHint
 } from "./cashDrawer.logic.js";
 
@@ -18,8 +19,8 @@ export function isDrawerReady(cfg = {}) {
 }
 
 export const OPEN_DRAWER_CMD = Buffer.from([
-  0x1b, 0x70, 0x00, 0x32, 0xfa,
-  0x1b, 0x70, 0x01, 0x32, 0xfa
+  0x1b, 0x70, 0x00, 0xff, 0xff,
+  0x1b, 0x70, 0x01, 0xff, 0xff
 ]);
 
 let lastOpenAt = null;
@@ -37,6 +38,7 @@ export function getDrawerHealth(cfg = {}) {
     serial_path: cfg.cash_drawer_serial_path || null,
     baud_rate: cfg.cash_drawer_baud_rate || 9600,
     printer_name: cfg.printer_name || null,
+    kick_printer: resolveDrawerKickPrinter(cfg) || null,
     last_open_at: lastOpenAt,
     last_error: lastError,
     last_mode_used: lastModeUsed,
@@ -89,7 +91,7 @@ export async function openDrawer(cfg = {}) {
       await openSerial(cfg.cash_drawer_serial_path, cfg.cash_drawer_baud_rate);
       lastModeUsed = "serial";
     } else if (mode === "printer") {
-      await sendRawToPrinter(cfg.printer_name, OPEN_DRAWER_CMD);
+      await sendRawToPrinter(resolveDrawerKickPrinter(cfg), OPEN_DRAWER_CMD);
       lastModeUsed = "printer";
     } else {
       throw new Error(
