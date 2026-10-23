@@ -169,7 +169,8 @@ router.post("/void", async (req, res) => {
       success: false,
       message: err.message,
       code: err.code || "PAX_ERROR",
-      responseCode: err.responseCode
+      responseCode: err.responseCode,
+      paxResult: err.paxResult
     });
   }
 });

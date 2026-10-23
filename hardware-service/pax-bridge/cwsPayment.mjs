@@ -411,6 +411,7 @@ export class CwsPaymentService {
     const parameters = {
       paymentGatewayId,
       transactionType: "VOID",
+      tenderType: "CARD",
       originalTransId: ref_num
     };
     if (amount != null) parameters.amount = formatAmount(amount);
