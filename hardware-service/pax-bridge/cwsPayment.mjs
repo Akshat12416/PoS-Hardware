@@ -317,6 +317,7 @@ export class CwsPaymentService {
     const parameters = {
       paymentGatewayId,
       transactionType: "SALE",
+      tenderType: "CARD",
       amount: formatAmount(amount),
       currencyCode: currency,
       invoiceNumber: orderId || requestId,
