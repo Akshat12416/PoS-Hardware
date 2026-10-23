@@ -71,13 +71,14 @@ function normalizeTransactionResult(txData) {
     message: txData.responseMessage || txData.result || txData.message || result,
     transactionId:
       txData.transactionId ||
+      txData.id ||
       txData.transId ||
       txData.ssl_txn_id ||
       txData.referenceNumber ||
       null,
     authCode: txData.authCode || txData.authorizationCode || null,
     amount: txData.amount || txData.transAmount || null,
-    cardBrand: txData.cardBrand || txData.cardType || null,
+    cardBrand: txData.cardBrand || txData.cardScheme || txData.cardType || null,
     last4: txData.maskedPan || txData.last4 || null,
     raw: txData
   };
