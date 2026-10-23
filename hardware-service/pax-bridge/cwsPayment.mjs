@@ -318,8 +318,10 @@ export class CwsPaymentService {
       paymentGatewayId,
       transactionType: "SALE",
       tenderType: "CARD",
-      amount: formatAmount(amount),
-      currencyCode: currency,
+      baseTransactionAmount: {
+        value: Math.round(Number(formatAmount(amount)) * 100),
+        currencyCode: currency
+      },
       invoiceNumber: orderId || requestId,
       // Required by Elavon / card brands for CSDK certification
       partialApprovalAllowed: "Y"
